@@ -103,4 +103,45 @@ public sealed class ExamSchedulingService : IExamSchedulingService
 
         return new ExamScheduleResult(true, ExamId: exam.Id);
     }
+
+    public async Task<ExamGoLiveResult> GoLiveAsync(
+        Guid examId,
+        ClaimsPrincipal actor,
+        CancellationToken ct = default)
+    {
+        var instituteId = await _scope.GetCurrentInstituteIdAsync(actor, ct);
+        if (instituteId is null)
+            return new ExamGoLiveResult(false, "Institute context not resolved.");
+
+        var exam = await _db.Exams
+            .FirstOrDefaultAsync(e => e.Id == examId && e.InstituteId == instituteId.Value, ct);
+
+        if (exam is null)
+            return new ExamGoLiveResult(false, "Exam not found in this institute.");
+
+        if (exam.Status != ExamStatus.Scheduled)
+            return new ExamGoLiveResult(false, $"Only Scheduled exams can go live. Current status: {exam.Status}.");
+
+        exam.Status = ExamStatus.Live;
+
+        var actorUserId = actor.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
+        await _audit.WriteAsync(
+            "Exam.GoLive",
+            entityType: "Exam",
+            entityId: exam.Id.ToString(),
+            actorUserId: actorUserId,
+            detailsJson: JsonSerializer.Serialize(new
+            {
+                exam.Title,
+                PreviousStatus = ExamStatus.Scheduled.ToString(),
+                NewStatus = exam.Status.ToString(),
+                exam.ScheduledAtUtc
+            }),
+            cancellationToken: ct);
+
+        await _db.SaveChangesAsync(ct);
+        _logger.LogInformation("Exam {ExamId} moved to Live by {ActorUserId}.", exam.Id, actorUserId);
+
+        return new ExamGoLiveResult(true, ExamId: exam.Id, Title: exam.Title);
+    }
 }

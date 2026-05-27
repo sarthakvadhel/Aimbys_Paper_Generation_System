@@ -95,13 +95,14 @@ public class ExamsController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> GoLive(Guid id, CancellationToken ct)
     {
-        var exam = await _db.Exams.FirstOrDefaultAsync(e => e.Id == id, ct);
-        if (exam is null) return NotFound();
+        var result = await _scheduling.GoLiveAsync(id, User, ct);
+        if (!result.Success)
+        {
+            TempData["Error"] = result.Error ?? "Unable to move exam to Live state.";
+            return RedirectToAction(nameof(Calendar));
+        }
 
-        exam.Status = Aimbys.Domain.Enums.ExamStatus.Live;
-        await _db.SaveChangesAsync(ct);
-
-        TempData["Success"] = $"Exam '{exam.Title}' is now Live. Students can start it.";
+        TempData["Success"] = $"Exam '{result.Title}' is now Live. Students can start it.";
         return RedirectToAction(nameof(Calendar));
     }
 }

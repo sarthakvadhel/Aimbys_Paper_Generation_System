@@ -1,0 +1,81 @@
+@model Aimbys.Web.Areas.SuperAdmin.ViewModels.SecurityMonitorViewModel
+@{
+    ViewData["Title"] = "Security Monitor";
+}
+
+<div class="container-fluid py-4 px-3 px-md-4">
+    <header class="mb-4">
+        <div class="text-secondary small text-uppercase" style="letter-spacing: 0.08em;">SuperAdmin / Management</div>
+        <h1 class="h3 fw-bold mt-1 mb-0">Security Monitor</h1>
+    </header>
+
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-xl-4">
+            <article class="aimbys-chart-card h-100 bg-body border rounded-3 p-3">
+                <div class="text-secondary small text-uppercase">Events (24h)</div>
+                <div class="h3 fw-bold mb-0 mt-1">@Model.EventsLast24Hours.ToString("N0")</div>
+            </article>
+        </div>
+        <div class="col-6 col-xl-4">
+            <article class="aimbys-chart-card h-100 bg-body border rounded-3 p-3">
+                <div class="text-secondary small text-uppercase">Warnings + Errors</div>
+                <div class="h3 fw-bold mb-0 mt-1 @(Model.HighSeverityEventsLast24Hours > 0 ? "text-danger" : "")">@Model.HighSeverityEventsLast24Hours.ToString("N0")</div>
+            </article>
+        </div>
+        <div class="col-12 col-xl-4">
+            <article class="aimbys-chart-card h-100 bg-body border rounded-3 p-3">
+                <div class="text-secondary small text-uppercase">Distinct actors</div>
+                <div class="h3 fw-bold mb-0 mt-1">@Model.DistinctActorsLast24Hours.ToString("N0")</div>
+            </article>
+        </div>
+    </div>
+
+    <article class="aimbys-chart-card bg-body border rounded-3 p-3 p-md-4">
+        <header class="mb-3">
+            <h2 class="h6 fw-semibold mb-0">Recent security-related audit events</h2>
+            <p class="text-secondary small mb-0 mt-1">Last 50 events in the previous 24 hours.</p>
+        </header>
+        <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th scope="col">Time (UTC)</th>
+                        <th scope="col">Severity</th>
+                        <th scope="col">Action</th>
+                        <th scope="col">Entity</th>
+                        <th scope="col">Actor</th>
+                        <th scope="col">IP</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (Model.RecentEvents.Count == 0)
+                    {
+                        <tr>
+                            <td colspan="6" class="text-center text-secondary py-3">No security events found in the selected window.</td>
+                        </tr>
+                    }
+                    else
+                    {
+                        foreach (var row in Model.RecentEvents)
+                        {
+                            var badge = row.Severity switch
+                            {
+                                "Error" => "text-bg-danger",
+                                "Warning" => "text-bg-warning",
+                                _ => "text-bg-secondary"
+                            };
+                            <tr>
+                                <td class="text-nowrap">@row.OccurredAtUtc.ToString("yyyy-MM-dd HH:mm:ss")</td>
+                                <td><span class="badge @badge">@row.Severity</span></td>
+                                <td class="font-monospace small">@row.Action</td>
+                                <td class="small">@row.EntityType / @row.EntityId</td>
+                                <td class="small">@(row.ActorUserId ?? "system")</td>
+                                <td class="small">@(string.IsNullOrWhiteSpace(row.IpAddress) ? "—" : row.IpAddress)</td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+    </article>
+</div>
