@@ -97,9 +97,7 @@ public class ResultPublicationService : IResultPublicationService
                 .Select(a => a.Id)
                 .ToListAsync(ct);
 
-            var scores = await _db.FinalPublishedScores
-                .Where(fps => answerIds.Contains(fps.ExamAttemptAnswerId))
-                .ToListAsync(ct);
+            var scores = await GetLatestScoresByAnswerAsync(answerIds, ct);
 
             var totalScore = scores.Sum(s => s.PointsAwarded);
             var maxScore = scores.Sum(s => s.MaxPoints);
@@ -157,9 +155,7 @@ public class ResultPublicationService : IResultPublicationService
             .Select(a => a.Id)
             .ToListAsync(ct);
 
-        var scores = await _db.FinalPublishedScores
-            .Where(fps => answerIds.Contains(fps.ExamAttemptAnswerId))
-            .ToListAsync(ct);
+        var scores = await GetLatestScoresByAnswerAsync(answerIds, ct);
 
         var answerItems = scores.Select(s => new AnswerScoreItem(
             s.ExamAttemptAnswerId,
@@ -217,4 +213,22 @@ public class ResultPublicationService : IResultPublicationService
         >= 40 => "D",
         _ => "F"
     };
+
+    private async Task<List<FinalPublishedScore>> GetLatestScoresByAnswerAsync(
+        List<Guid> answerIds,
+        CancellationToken ct)
+    {
+        var allScores = await _db.FinalPublishedScores
+            .Where(fps => answerIds.Contains(fps.ExamAttemptAnswerId))
+            .ToListAsync(ct);
+
+        return allScores
+            .GroupBy(fps => fps.ExamAttemptAnswerId)
+            .Select(g => g
+                .OrderByDescending(s => s.Version)
+                .ThenByDescending(s => s.ComputedAtUtc)
+                .ThenByDescending(s => s.Id)
+                .First())
+            .ToList();
+    }
 }
