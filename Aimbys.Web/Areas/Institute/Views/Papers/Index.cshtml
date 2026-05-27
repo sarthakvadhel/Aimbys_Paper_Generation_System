@@ -1,94 +1,217 @@
+@using Aimbys.Domain.Enums
+@using Aimbys.Web.Models.UI
 @model IEnumerable<Aimbys.Domain.Entities.Papers.Paper>
 @{
     ViewData["Title"] = "Paper Approvals";
-}
+    var counts = (IDictionary<PaperStatus, int>)ViewBag.Counts;
+    var activeFilter = (string?)ViewBag.ActiveFilter;
+    var totalAll = counts.Values.Sum();
 
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <h4 class="mb-0">Paper Approvals</h4>
-</div>
+    string FilterUrl(string? status) =>
+        Url.Action("Index", "Papers", new { area = "Institute", status })!;
 
-@if (!Model.Any())
-{
-    <div class="card shadow-sm">
-        <div class="card-body text-muted text-center py-4">No papers submitted yet.</div>
-    </div>
-}
-else
-{
-    <div class="card shadow-sm">
-        <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
-                <thead class="table-light">
-                    <tr>
-                        <th>Title</th>
-                        <th>Status</th>
-                        <th>Updated</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var p in Model)
-                    {
-                        var version = p.Versions.FirstOrDefault(v => v.Id == p.CurrentVersionId);
-                        var title = version?.Title ?? "Untitled";
-                        var badgeClass = p.Status switch {
-                            Aimbys.Domain.Enums.PaperStatus.SubmittedForApproval => "bg-warning text-dark",
-                            Aimbys.Domain.Enums.PaperStatus.Approved => "bg-success",
-                            Aimbys.Domain.Enums.PaperStatus.Returned => "bg-danger",
-                            Aimbys.Domain.Enums.PaperStatus.Draft => "bg-secondary",
-                            _ => "bg-dark"
-                        };
-                        <tr>
-                            <td>@title</td>
-                            <td><span class="badge @badgeClass">@p.Status</span></td>
-                            <td>@p.UpdatedAtUtc.ToString("dd MMM yyyy HH:mm")</td>
-                            <td>
-                                @if (p.Status == Aimbys.Domain.Enums.PaperStatus.SubmittedForApproval)
-                                {
-                                    <form asp-action="Approve" asp-route-id="@p.Id" method="post" class="d-inline">
-                                        @Html.AntiForgeryToken()
-                                        <button type="submit" class="btn btn-success btn-sm me-1">Approve</button>
-                                    </form>
-                                    <button type="button" class="btn btn-outline-danger btn-sm"
-                                            data-bs-toggle="modal" data-bs-target="#returnModal-@p.Id">
-                                        Return
-                                    </button>
-                                }
-                                else
-                                {
-                                    <span class="text-muted small">—</span>
-                                }
-                            </td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
-        </div>
-    </div>
-
-    @* Return modals *@
-    @foreach (var p in Model.Where(p => p.Status == Aimbys.Domain.Enums.PaperStatus.SubmittedForApproval))
+    string StatusBadgeKey(PaperStatus s) => s switch
     {
-        <div class="modal fade" id="returnModal-@p.Id" tabindex="-1">
-            <div class="modal-dialog">
-                <div class="modal-content">
-                    <form asp-action="Return" asp-route-id="@p.Id" method="post">
-                        @Html.AntiForgeryToken()
-                        <div class="modal-header">
-                            <h5 class="modal-title">Return Paper</h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                        </div>
-                        <div class="modal-body">
-                            <label class="form-label">Comment <span class="text-danger">*</span></label>
-                            <textarea name="comment" class="form-control" rows="3" required></textarea>
-                        </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                            <button type="submit" class="btn btn-danger">Return to Author</button>
-                        </div>
-                    </form>
-                </div>
+        PaperStatus.Draft                => "draft",
+        PaperStatus.SubmittedForApproval => "pending",
+        PaperStatus.Approved             => "approved",
+        PaperStatus.Returned             => "rejected",
+        PaperStatus.Published            => "published",
+        PaperStatus.Archived             => "archived",
+        _ => "draft"
+    };
+}
+
+<div class="container-fluid py-4 px-3 px-md-4">
+
+    <header class="mb-4">
+        <div class="text-secondary small text-uppercase" style="letter-spacing: 0.08em;">Institute / Papers</div>
+        <h1 class="h3 fw-bold mt-1 mb-0">Paper Approvals</h1>
+        <p class="text-secondary mb-0 mt-1">Review submissions, publish approved papers, and archive retired ones.</p>
+    </header>
+
+    @* ---------- Flash messages ---------- *@
+    @if (TempData["Success"] is string okMsg)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            @okMsg
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+    @if (TempData["Error"] is string errMsg)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            @errMsg
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    @* ---------- Status filter chips ---------- *@
+    <nav class="mb-3 d-flex flex-wrap gap-2" aria-label="Status filter">
+        <a class="btn btn-sm @(activeFilter is null ? "btn-primary" : "btn-outline-secondary")"
+           href="@FilterUrl(null)">
+            All <span class="badge text-bg-light ms-1">@totalAll</span>
+        </a>
+        @foreach (var s in new[] { PaperStatus.SubmittedForApproval, PaperStatus.Approved, PaperStatus.Published, PaperStatus.Returned, PaperStatus.Draft, PaperStatus.Archived })
+        {
+            var name = s.ToString();
+            var label = s switch
+            {
+                PaperStatus.SubmittedForApproval => "Pending",
+                PaperStatus.Approved             => "Approved",
+                PaperStatus.Published            => "Published",
+                PaperStatus.Returned             => "Returned",
+                PaperStatus.Draft                => "Drafts",
+                PaperStatus.Archived             => "Archived",
+                _ => name
+            };
+            var active = string.Equals(activeFilter, name, StringComparison.OrdinalIgnoreCase);
+            var count = counts[s];
+            <a class="btn btn-sm @(active ? "btn-primary" : "btn-outline-secondary")"
+               href="@FilterUrl(name)">
+                @label <span class="badge text-bg-light ms-1">@count</span>
+            </a>
+        }
+    </nav>
+
+    @if (!Model.Any())
+    {
+        <div class="bg-body border rounded-3 p-5 text-center text-secondary">
+            <div class="mb-2" style="font-size: 1.6rem;">&#128193;</div>
+            <div class="fw-semibold mb-1">
+                @(activeFilter is null
+                    ? "No papers in this institute yet"
+                    : $"No papers with status \"{activeFilter}\"")
+            </div>
+            <div class="small">
+                Once teachers submit papers for approval they'll appear here for review.
             </div>
         </div>
     }
-}
+    else
+    {
+        <div class="bg-body border rounded-3 overflow-hidden">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0 aimbys-data-table">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Title</th>
+                            <th>Status</th>
+                            <th class="text-end">Updated</th>
+                            <th class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var p in Model)
+                        {
+                            var version = p.Versions.FirstOrDefault(v => v.Id == p.CurrentVersionId);
+                            var title = version?.Title ?? "(untitled paper)";
+                            <tr>
+                                <td>
+                                    <div class="fw-semibold">@title</div>
+                                    <div class="text-secondary small">P-@p.Id.ToString().Substring(0, 8).ToUpperInvariant()</div>
+                                </td>
+                                <td>@Html.Raw(StatusBadge.Render(StatusBadgeKey(p.Status)))</td>
+                                <td class="text-end text-secondary small">
+                                    @p.UpdatedAtUtc.ToString("dd MMM yyyy HH:mm")
+                                </td>
+                                <td class="text-end">
+                                    @switch (p.Status)
+                                    {
+                                        case PaperStatus.SubmittedForApproval:
+                                            <form asp-action="Approve" asp-route-id="@p.Id" method="post" class="d-inline">
+                                                @Html.AntiForgeryToken()
+                                                <button type="submit" class="btn btn-success btn-sm me-1">Approve</button>
+                                            </form>
+                                            <button type="button" class="btn btn-outline-danger btn-sm"
+                                                    data-bs-toggle="modal" data-bs-target="#returnModal-@p.Id">
+                                                Return
+                                            </button>
+                                            break;
+
+                                        case PaperStatus.Approved:
+                                            <form asp-action="Publish" asp-route-id="@p.Id" method="post" class="d-inline">
+                                                @Html.AntiForgeryToken()
+                                                <button type="submit" class="btn btn-primary btn-sm">Publish</button>
+                                            </form>
+                                            break;
+
+                                        case PaperStatus.Published:
+                                            <button type="button" class="btn btn-outline-secondary btn-sm"
+                                                    data-bs-toggle="modal" data-bs-target="#archiveModal-@p.Id">
+                                                Archive
+                                            </button>
+                                            break;
+
+                                        default:
+                                            <span class="text-secondary small">&mdash;</span>
+                                            break;
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        @* ---------- Confirmation modals ---------- *@
+        @foreach (var p in Model.Where(p => p.Status == PaperStatus.SubmittedForApproval))
+        {
+            <div class="modal fade" id="returnModal-@p.Id" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <form asp-action="Return" asp-route-id="@p.Id" method="post">
+                            @Html.AntiForgeryToken()
+                            <div class="modal-header">
+                                <h5 class="modal-title">Return paper to author</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <p class="text-secondary small mb-3">
+                                    The author will receive a notification with your comment and be able to edit and resubmit the paper.
+                                </p>
+                                <label class="form-label">Reviewer comment <span class="text-danger">*</span></label>
+                                <textarea name="comment" class="form-control" rows="4" required
+                                          placeholder="Explain what needs to be changed before resubmission"></textarea>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                <button type="submit" class="btn btn-danger">Return to author</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        }
+
+        @foreach (var p in Model.Where(p => p.Status == PaperStatus.Published))
+        {
+            <div class="modal fade" id="archiveModal-@p.Id" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <form asp-action="Archive" asp-route-id="@p.Id" method="post">
+                            @Html.AntiForgeryToken()
+                            <div class="modal-header">
+                                <h5 class="modal-title">Archive paper</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <p class="mb-2">
+                                    Archiving prevents this paper from being used in <strong>new</strong> exam schedules.
+                                </p>
+                                <p class="text-secondary small mb-0">
+                                    Existing exam attempts, evaluations and published results remain intact.
+                                </p>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                <button type="submit" class="btn btn-outline-secondary">Archive</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        }
+    }
+</div>

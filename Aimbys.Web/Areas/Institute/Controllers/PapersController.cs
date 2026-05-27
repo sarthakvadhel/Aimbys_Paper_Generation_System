@@ -10,8 +10,10 @@ using Microsoft.EntityFrameworkCore;
 namespace Aimbys.Web.Areas.Institute.Controllers;
 
 /// <summary>
-/// Institute-admin paper management surface. Admins view all papers,
-/// approve submitted papers, and return them with comments.
+/// Institute-admin paper management surface. Drives the full lifecycle
+/// (Submit / Approve / Return / Publish / Archive) through
+/// <see cref="IPaperAssemblyService"/>; status mutations never happen
+/// in the controller.
 /// </summary>
 [Area("Institute")]
 [Authorize(Roles = Roles.InstituteAdmin)]
@@ -31,14 +33,35 @@ public class PapersController : Controller
         _paperService = paperService;
     }
 
-    public async Task<IActionResult> Index(CancellationToken ct)
+    public async Task<IActionResult> Index(string? status, CancellationToken ct)
     {
         var instituteId = await _scope.GetCurrentInstituteIdAsync(User, ct);
         if (instituteId is null) return Forbid();
 
-        var papers = await _db.Papers
+        // Status totals for the filter chips (one query, computed in memory).
+        var counts = await _db.Papers
+            .AsNoTracking()
             .Where(p => p.InstituteId == instituteId.Value)
+            .GroupBy(p => p.Status)
+            .Select(g => new { Status = g.Key, Count = g.Count() })
+            .ToListAsync(ct);
+
+        ViewBag.Counts = Enum.GetValues<PaperStatus>()
+            .ToDictionary(s => s, s => counts.FirstOrDefault(c => c.Status == s)?.Count ?? 0);
+        ViewBag.ActiveFilter = status;
+
+        var query = _db.Papers
+            .AsNoTracking()
             .Include(p => p.Versions)
+            .Where(p => p.InstituteId == instituteId.Value);
+
+        if (!string.IsNullOrWhiteSpace(status)
+            && Enum.TryParse<PaperStatus>(status, ignoreCase: true, out var parsed))
+        {
+            query = query.Where(p => p.Status == parsed);
+        }
+
+        var papers = await query
             .OrderByDescending(p => p.UpdatedAtUtc)
             .ToListAsync(ct);
 
@@ -50,14 +73,7 @@ public class PapersController : Controller
     public async Task<IActionResult> Approve(Guid id, CancellationToken ct)
     {
         var result = await _paperService.ApproveAsync(id, User, ct);
-
-        if (!result.Success)
-        {
-            TempData["Error"] = result.Error ?? "Failed to approve paper.";
-            return RedirectToAction(nameof(Index));
-        }
-
-        TempData["Success"] = "Paper approved.";
+        SetFlash(result, "Paper approved.");
         return RedirectToAction(nameof(Index));
     }
 
@@ -72,14 +88,37 @@ public class PapersController : Controller
         }
 
         var result = await _paperService.ReturnAsync(id, User, comment.Trim(), ct);
+        SetFlash(result, "Paper returned to author.");
+        return RedirectToAction(nameof(Index));
+    }
 
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Publish(Guid id, CancellationToken ct)
+    {
+        var result = await _paperService.PublishAsync(id, User, ct);
+        SetFlash(result, "Paper published. It is now available for exam scheduling.");
+        return RedirectToAction(nameof(Index));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Archive(Guid id, CancellationToken ct)
+    {
+        var result = await _paperService.ArchiveAsync(id, User, ct);
+        SetFlash(result, "Paper archived.");
+        return RedirectToAction(nameof(Index));
+    }
+
+    private void SetFlash(PaperResult result, string successMessage)
+    {
         if (!result.Success)
         {
-            TempData["Error"] = result.Error ?? "Failed to return paper.";
-            return RedirectToAction(nameof(Index));
+            TempData["Error"] = result.Error ?? "Action could not be completed.";
         }
-
-        TempData["Success"] = "Paper returned to author.";
-        return RedirectToAction(nameof(Index));
+        else
+        {
+            TempData["Success"] = successMessage;
+        }
     }
 }

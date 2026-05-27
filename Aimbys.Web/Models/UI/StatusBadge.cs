@@ -27,7 +27,7 @@ public static class StatusBadge
         var key = (status ?? string.Empty).Trim().ToLowerInvariant();
         var classes = key switch
         {
-            "approved" or "operational" or "success" or "active"      => "text-bg-success",
+            "approved" or "operational" or "success" or "active" or "published"   => "text-bg-success",
             "pending" or "warning"                                    => "text-bg-warning",
             "degraded" or "draft" or "archived"                       => "text-bg-secondary",
             "critical" or "failed" or "error" or "rejected"           => "text-bg-danger",

@@ -1,21 +1,26 @@
 {
   "key": "PaperApproval",
   "version": 1,
-  "description": "Paper generation + institute-admin approval. Draft -> submitted -> approved/returned.",
+  "description": "Paper generation lifecycle: Draft -> SubmittedForApproval -> Approved | Returned -> Published -> Archived. Returned papers can be reworked and re-submitted directly.",
   "states": [
     "Draft",
     "SubmittedForApproval",
     "Approved",
-    "Returned"
+    "Returned",
+    "Published",
+    "Archived"
   ],
   "terminalStates": [
-    "Approved"
+    "Archived"
   ],
   "transitions": [
     { "fromState": "Draft",                "toState": "SubmittedForApproval", "requiredRole": "Teacher",        "requiredPermission": "CanGeneratePaper", "queueName": "PaperApproval" },
     { "fromState": "SubmittedForApproval", "toState": "Approved",             "requiredRole": "InstituteAdmin", "queueName": null },
     { "fromState": "SubmittedForApproval", "toState": "Returned",             "requiredRole": "InstituteAdmin", "queueName": null },
-    { "fromState": "Returned",             "toState": "Draft",                "requiredRole": "Teacher",        "requiredPermission": "CanGeneratePaper", "queueName": null }
+    { "fromState": "Returned",             "toState": "Draft",                "requiredRole": "Teacher",        "requiredPermission": "CanGeneratePaper", "queueName": null },
+    { "fromState": "Returned",             "toState": "SubmittedForApproval", "requiredRole": "Teacher",        "requiredPermission": "CanGeneratePaper", "queueName": "PaperApproval" },
+    { "fromState": "Approved",             "toState": "Published",            "requiredRole": "InstituteAdmin", "queueName": null },
+    { "fromState": "Published",            "toState": "Archived",             "requiredRole": "InstituteAdmin", "queueName": null }
   ],
   "escalationRules": [
     {

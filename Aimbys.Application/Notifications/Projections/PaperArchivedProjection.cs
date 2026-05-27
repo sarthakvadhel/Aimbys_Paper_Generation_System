@@ -5,13 +5,13 @@ using Aimbys.Domain.Events;
 namespace Aimbys.Application.Notifications.Projections;
 
 /// <summary>
-/// Notifies the paper author when an Institute Admin approves their
-/// paper. (The approving admin is not the right recipient &mdash;
-/// they performed the action and don't need a notification.)
+/// Notifies the paper author when their published paper is archived.
+/// Existing attempts and results are preserved; the paper just
+/// becomes unavailable for new exam schedules.
 /// </summary>
-public class PaperApprovedProjection : INotificationProjection<PaperApprovedEvent>
+public class PaperArchivedProjection : INotificationProjection<PaperArchivedEvent>
 {
-    public Task<IReadOnlyList<Notification>> ProjectAsync(PaperApprovedEvent e, CancellationToken ct = default)
+    public Task<IReadOnlyList<Notification>> ProjectAsync(PaperArchivedEvent e, CancellationToken ct = default)
     {
         if (string.IsNullOrEmpty(e.AuthorUserId))
         {
@@ -24,9 +24,9 @@ public class PaperApprovedProjection : INotificationProjection<PaperApprovedEven
             {
                 InstituteId = e.InstituteId,
                 RecipientUserId = e.AuthorUserId,
-                Title = $"Paper \"{e.PaperTitle}\" approved",
-                Body = "Your paper has been approved by the institute admin and is ready to be published for exam scheduling.",
-                Severity = NotificationSeverity.Success,
+                Title = $"Paper \"{e.PaperTitle}\" archived",
+                Body = "The paper has been archived and is no longer available for new exam schedules. Past attempts and results remain accessible.",
+                Severity = NotificationSeverity.Information,
                 RouteUrl = $"/Teacher/Papers/Preview/{e.PaperId}"
             }
         };

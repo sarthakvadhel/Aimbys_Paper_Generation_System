@@ -160,6 +160,11 @@ public static class DependencyInjection
         // Register all 8 notification projections.
         services.AddScoped<INotificationProjection<PaperSubmittedEvent>, Projections.PaperSubmittedProjection>();
         services.AddScoped<INotificationProjection<PaperApprovedEvent>, Projections.PaperApprovedProjection>();
+        // Slice B: Returned/Published/Archived projections complete the
+        // paper lifecycle so the author is notified at every stage.
+        services.AddScoped<INotificationProjection<PaperReturnedEvent>, Projections.PaperReturnedProjection>();
+        services.AddScoped<INotificationProjection<PaperPublishedEvent>, Projections.PaperPublishedProjection>();
+        services.AddScoped<INotificationProjection<PaperArchivedEvent>, Projections.PaperArchivedProjection>();
         services.AddScoped<INotificationProjection<EvaluationAssignedEvent>, Projections.EvaluationAssignedProjection>();
         services.AddScoped<INotificationProjection<ModerationReturnedEvent>, Projections.ModerationReturnedProjection>();
         services.AddScoped<INotificationProjection<ExamScheduledEvent>, Projections.ExamScheduledProjection>();

@@ -5,13 +5,13 @@ using Aimbys.Domain.Events;
 namespace Aimbys.Application.Notifications.Projections;
 
 /// <summary>
-/// Notifies the paper author when an Institute Admin approves their
-/// paper. (The approving admin is not the right recipient &mdash;
-/// they performed the action and don't need a notification.)
+/// Notifies the paper author when their approved paper is published
+/// for exam scheduling. The notification deep-links to the read-only
+/// preview surface.
 /// </summary>
-public class PaperApprovedProjection : INotificationProjection<PaperApprovedEvent>
+public class PaperPublishedProjection : INotificationProjection<PaperPublishedEvent>
 {
-    public Task<IReadOnlyList<Notification>> ProjectAsync(PaperApprovedEvent e, CancellationToken ct = default)
+    public Task<IReadOnlyList<Notification>> ProjectAsync(PaperPublishedEvent e, CancellationToken ct = default)
     {
         if (string.IsNullOrEmpty(e.AuthorUserId))
         {
@@ -24,8 +24,8 @@ public class PaperApprovedProjection : INotificationProjection<PaperApprovedEven
             {
                 InstituteId = e.InstituteId,
                 RecipientUserId = e.AuthorUserId,
-                Title = $"Paper \"{e.PaperTitle}\" approved",
-                Body = "Your paper has been approved by the institute admin and is ready to be published for exam scheduling.",
+                Title = $"Paper \"{e.PaperTitle}\" published",
+                Body = "The paper is now available for exam scheduling.",
                 Severity = NotificationSeverity.Success,
                 RouteUrl = $"/Teacher/Papers/Preview/{e.PaperId}"
             }

@@ -3,8 +3,10 @@ using Aimbys.Application.Audit;
 using Aimbys.Application.Papers;
 using Aimbys.Application.Workflow;
 using Aimbys.Domain.Entities.Papers;
+using Aimbys.Domain.Entities.Workflow;
 using Aimbys.Domain.Enums;
 using Aimbys.Domain.Events;
+using Aimbys.Domain.Workflow;
 using Aimbys.Infrastructure.Notifications;
 using Aimbys.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -13,8 +15,12 @@ using Microsoft.Extensions.Logging;
 namespace Aimbys.Infrastructure.Papers;
 
 /// <summary>
-/// Implements paper assembly workflows: draft creation, saving,
-/// blueprint-based generation, submission, approval, and return.
+/// Implements the full paper-assembly + approval lifecycle. State
+/// transitions go through <see cref="IWorkflowService"/>; this class
+/// only sets <c>Paper.Status</c> after the engine has accepted the
+/// transition. Magic strings are forbidden &mdash; use
+/// <see cref="PaperWorkflow"/> constants for everything the engine
+/// receives.
 /// </summary>
 public class PaperAssemblyService : IPaperAssemblyService
 {
@@ -40,6 +46,10 @@ public class PaperAssemblyService : IPaperAssemblyService
         _audit = audit;
         _logger = logger;
     }
+
+    // =========================================================================
+    // Authoring
+    // =========================================================================
 
     public async Task<PaperResult> CreateDraftAsync(PaperCreateRequest request, ClaimsPrincipal actor, CancellationToken ct = default)
     {
@@ -114,16 +124,13 @@ public class PaperAssemblyService : IPaperAssemblyService
         if (currentVersion.IsLocked)
             return new PaperResult(false, "Current version is locked and cannot be edited.");
 
-        // Validate
         var validationResult = _validation.Validate(request, currentVersion.TotalMarks);
         if (!validationResult.IsValid)
             return new PaperResult(false, string.Join("; ", validationResult.Errors));
 
-        // Clear existing sections and questions on the current version
         _db.PaperSections.RemoveRange(currentVersion.Sections);
         _db.PaperQuestions.RemoveRange(currentVersion.Questions);
 
-        // Recreate from request
         var newSections = new List<PaperSection>();
         foreach (var sInput in request.Sections)
         {
@@ -189,14 +196,9 @@ public class PaperAssemblyService : IPaperAssemblyService
         if (currentVersion.IsLocked)
             return new PaperResult(false, "Current version is locked.");
 
-        // V1 stub: create placeholder sections from blueprint concept.
-        // Full question-selection logic requires the question bank data from Chunks 20-21.
         currentVersion.BlueprintVersionId = blueprintVersionId;
-
-        // Clear existing sections
         _db.PaperSections.RemoveRange(currentVersion.Sections);
 
-        // Create placeholder sections
         var placeholderSections = new[]
         {
             new PaperSection { VersionId = currentVersion.Id, Name = "Section A – Objective", Marks = 20, SortOrder = 1 },
@@ -211,13 +213,17 @@ public class PaperAssemblyService : IPaperAssemblyService
         await _db.SaveChangesAsync(ct);
 
         _logger.LogInformation(
-            "Auto-selection requires question bank data from Chunks 20-21. Blueprint {BlueprintVersionId} linked to Paper {PaperId}.",
+            "Auto-selection requires question bank data from later chunks. Blueprint {BlueprintVersionId} linked to Paper {PaperId}.",
             blueprintVersionId, paperId);
 
         await _audit.WriteAsync("Paper.GeneratedFromBlueprint", "Paper", paper.Id.ToString(), userId, cancellationToken: ct);
 
         return new PaperResult(true, PaperId: paper.Id, VersionId: currentVersion.Id);
     }
+
+    // =========================================================================
+    // Workflow transitions
+    // =========================================================================
 
     public async Task<PaperResult> SubmitForApprovalAsync(Guid paperId, ClaimsPrincipal actor, CancellationToken ct = default)
     {
@@ -244,25 +250,42 @@ public class PaperAssemblyService : IPaperAssemblyService
         if (currentVersion is null)
             return new PaperResult(false, "Current version not found.");
 
-        // Lock the version
+        // Lock the version so no further author edits land between submit
+        // and review.
         currentVersion.IsLocked = true;
 
-        // Start the PaperApproval workflow
-        var wfResult = await _workflow.StartAsync(
-            "PaperApproval",
-            "Paper",
-            paper.Id,
-            userId,
-            paper.InstituteId,
-            ct);
+        // Find an existing open instance (resubmits from Returned reuse it)
+        // or start a new one for first-time submissions.
+        var existingInstance = await _db.WorkflowInstances
+            .FirstOrDefaultAsync(wi =>
+                wi.SubjectType == PaperWorkflow.SubjectType
+                && wi.SubjectId == paper.Id
+                && !wi.IsCompleted, ct);
 
-        if (!wfResult.IsSuccess)
-            return new PaperResult(false, wfResult.ErrorMessage ?? "Failed to start approval workflow.");
+        Guid instanceId;
+        if (existingInstance is null)
+        {
+            var startResult = await _workflow.StartAsync(
+                PaperWorkflow.DefinitionKey,
+                PaperWorkflow.SubjectType,
+                paper.Id,
+                userId,
+                paper.InstituteId,
+                ct);
 
-        // Transition to SubmittedForApproval
+            if (!startResult.IsSuccess || startResult.InstanceId is null)
+                return new PaperResult(false, startResult.ErrorMessage ?? "Failed to start approval workflow.");
+
+            instanceId = startResult.InstanceId.Value;
+        }
+        else
+        {
+            instanceId = existingInstance.Id;
+        }
+
         var transitionResult = await _workflow.TransitionAsync(
-            wfResult.InstanceId!.Value,
-            "SubmittedForApproval",
+            instanceId,
+            PaperWorkflow.States.SubmittedForApproval,
             actor,
             cancellationToken: ct);
 
@@ -301,27 +324,19 @@ public class PaperAssemblyService : IPaperAssemblyService
             return new PaperResult(false, "Paper not found.");
 
         if (paper.Status != PaperStatus.SubmittedForApproval)
-            return new PaperResult(false, "Paper is not in SubmittedForApproval status.");
+            return new PaperResult(false, $"Paper cannot be approved from {paper.Status} status.");
 
         var currentVersion = paper.Versions.FirstOrDefault(v => v.Id == paper.CurrentVersionId);
         if (currentVersion is null)
             return new PaperResult(false, "Current version not found.");
 
-        // Get workflow instance
-        var currentState = await _workflow.GetCurrentStateAsync("Paper", paper.Id, ct);
-        if (currentState is null)
-            return new PaperResult(false, "No active workflow found.");
-
-        // Find the workflow instance for the transition
-        var wfInstance = await _db.WorkflowInstances
-            .FirstOrDefaultAsync(wi => wi.SubjectType == "Paper" && wi.SubjectId == paper.Id && !wi.IsCompleted, ct);
-
-        if (wfInstance is null)
-            return new PaperResult(false, "No active workflow instance.");
+        var instance = await GetActiveInstanceAsync(paper.Id, ct);
+        if (instance is null)
+            return new PaperResult(false, "No active workflow instance for this paper.");
 
         var transitionResult = await _workflow.TransitionAsync(
-            wfInstance.Id,
-            "Approved",
+            instance.Id,
+            PaperWorkflow.States.Approved,
             actor,
             cancellationToken: ct);
 
@@ -331,11 +346,14 @@ public class PaperAssemblyService : IPaperAssemblyService
         paper.Status = PaperStatus.Approved;
         paper.UpdatedAtUtc = DateTime.UtcNow;
 
+        var authorUserId = await ResolveAuthorUserIdAsync(paper.AuthorTeacherProfileId, ct);
+
         _events.Enqueue(new PaperApprovedEvent
         {
             PaperId = paper.Id,
             PaperTitle = currentVersion.Title,
             ApprovedByUserId = userId,
+            AuthorUserId = authorUserId,
             InstituteId = paper.InstituteId
         });
 
@@ -348,6 +366,9 @@ public class PaperAssemblyService : IPaperAssemblyService
 
     public async Task<PaperResult> ReturnAsync(Guid paperId, ClaimsPrincipal actor, string comment, CancellationToken ct = default)
     {
+        if (string.IsNullOrWhiteSpace(comment))
+            return new PaperResult(false, "A reviewer comment is required when returning a paper.");
+
         var userId = actor.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrEmpty(userId))
             return new PaperResult(false, "User not authenticated.");
@@ -360,22 +381,19 @@ public class PaperAssemblyService : IPaperAssemblyService
             return new PaperResult(false, "Paper not found.");
 
         if (paper.Status != PaperStatus.SubmittedForApproval)
-            return new PaperResult(false, "Paper is not in SubmittedForApproval status.");
+            return new PaperResult(false, $"Paper cannot be returned from {paper.Status} status.");
 
         var currentVersion = paper.Versions.FirstOrDefault(v => v.Id == paper.CurrentVersionId);
         if (currentVersion is null)
             return new PaperResult(false, "Current version not found.");
 
-        // Get the workflow instance
-        var wfInstance = await _db.WorkflowInstances
-            .FirstOrDefaultAsync(wi => wi.SubjectType == "Paper" && wi.SubjectId == paper.Id && !wi.IsCompleted, ct);
-
-        if (wfInstance is null)
-            return new PaperResult(false, "No active workflow instance.");
+        var instance = await GetActiveInstanceAsync(paper.Id, ct);
+        if (instance is null)
+            return new PaperResult(false, "No active workflow instance for this paper.");
 
         var transitionResult = await _workflow.TransitionAsync(
-            wfInstance.Id,
-            "Returned",
+            instance.Id,
+            PaperWorkflow.States.Returned,
             actor,
             comment,
             ct);
@@ -386,18 +404,18 @@ public class PaperAssemblyService : IPaperAssemblyService
         paper.Status = PaperStatus.Returned;
         paper.UpdatedAtUtc = DateTime.UtcNow;
 
-        // Unlock the version so the author can edit again
+        // Unlock so the author can edit + resubmit.
         currentVersion.IsLocked = false;
 
-        // Find the author's user id
-        var authorProfile = await _db.TeacherProfiles
-            .FirstOrDefaultAsync(t => t.Id == paper.AuthorTeacherProfileId, ct);
+        var authorUserId = await ResolveAuthorUserIdAsync(paper.AuthorTeacherProfileId, ct);
 
         _events.Enqueue(new PaperReturnedEvent
         {
             PaperId = paper.Id,
-            AuthorUserId = authorProfile?.UserId ?? string.Empty,
-            Comment = comment,
+            PaperTitle = currentVersion.Title,
+            AuthorUserId = authorUserId,
+            ReturnedByUserId = userId,
+            Comment = comment.Trim(),
             InstituteId = paper.InstituteId
         });
 
@@ -406,5 +424,145 @@ public class PaperAssemblyService : IPaperAssemblyService
         await _audit.WriteAsync("Paper.Returned", "Paper", paper.Id.ToString(), userId, cancellationToken: ct);
 
         return new PaperResult(true, PaperId: paper.Id, VersionId: currentVersion.Id);
+    }
+
+    public async Task<PaperResult> PublishAsync(Guid paperId, ClaimsPrincipal actor, CancellationToken ct = default)
+    {
+        var userId = actor.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(userId))
+            return new PaperResult(false, "User not authenticated.");
+
+        var paper = await _db.Papers
+            .Include(p => p.Versions)
+            .FirstOrDefaultAsync(p => p.Id == paperId, ct);
+
+        if (paper is null)
+            return new PaperResult(false, "Paper not found.");
+
+        if (paper.Status != PaperStatus.Approved)
+            return new PaperResult(false, $"Only approved papers can be published; this paper is {paper.Status}.");
+
+        var currentVersion = paper.Versions.FirstOrDefault(v => v.Id == paper.CurrentVersionId);
+        if (currentVersion is null)
+            return new PaperResult(false, "Current version not found.");
+
+        var instance = await GetActiveInstanceAsync(paper.Id, ct);
+        if (instance is null)
+            return new PaperResult(false, "No active workflow instance for this paper.");
+
+        var transitionResult = await _workflow.TransitionAsync(
+            instance.Id,
+            PaperWorkflow.States.Published,
+            actor,
+            cancellationToken: ct);
+
+        if (!transitionResult.IsSuccess)
+            return new PaperResult(false, transitionResult.ErrorMessage ?? "Failed to transition workflow.");
+
+        paper.Status = PaperStatus.Published;
+        paper.UpdatedAtUtc = DateTime.UtcNow;
+
+        var authorUserId = await ResolveAuthorUserIdAsync(paper.AuthorTeacherProfileId, ct);
+
+        _events.Enqueue(new PaperPublishedEvent
+        {
+            PaperId = paper.Id,
+            PaperTitle = currentVersion.Title,
+            PublishedByUserId = userId,
+            AuthorUserId = authorUserId,
+            InstituteId = paper.InstituteId
+        });
+
+        await _db.SaveChangesAsync(ct);
+
+        await _audit.WriteAsync("Paper.Published", "Paper", paper.Id.ToString(), userId, cancellationToken: ct);
+
+        return new PaperResult(true, PaperId: paper.Id, VersionId: currentVersion.Id);
+    }
+
+    public async Task<PaperResult> ArchiveAsync(Guid paperId, ClaimsPrincipal actor, CancellationToken ct = default)
+    {
+        var userId = actor.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(userId))
+            return new PaperResult(false, "User not authenticated.");
+
+        var paper = await _db.Papers
+            .Include(p => p.Versions)
+            .FirstOrDefaultAsync(p => p.Id == paperId, ct);
+
+        if (paper is null)
+            return new PaperResult(false, "Paper not found.");
+
+        if (paper.Status != PaperStatus.Published)
+            return new PaperResult(false, $"Only published papers can be archived; this paper is {paper.Status}.");
+
+        var currentVersion = paper.Versions.FirstOrDefault(v => v.Id == paper.CurrentVersionId);
+        if (currentVersion is null)
+            return new PaperResult(false, "Current version not found.");
+
+        var instance = await GetActiveInstanceAsync(paper.Id, ct);
+        if (instance is null)
+            return new PaperResult(false, "No active workflow instance for this paper.");
+
+        var transitionResult = await _workflow.TransitionAsync(
+            instance.Id,
+            PaperWorkflow.States.Archived,
+            actor,
+            cancellationToken: ct);
+
+        if (!transitionResult.IsSuccess)
+            return new PaperResult(false, transitionResult.ErrorMessage ?? "Failed to transition workflow.");
+
+        paper.Status = PaperStatus.Archived;
+        paper.UpdatedAtUtc = DateTime.UtcNow;
+
+        var authorUserId = await ResolveAuthorUserIdAsync(paper.AuthorTeacherProfileId, ct);
+
+        _events.Enqueue(new PaperArchivedEvent
+        {
+            PaperId = paper.Id,
+            PaperTitle = currentVersion.Title,
+            ArchivedByUserId = userId,
+            AuthorUserId = authorUserId,
+            InstituteId = paper.InstituteId
+        });
+
+        await _db.SaveChangesAsync(ct);
+
+        await _audit.WriteAsync("Paper.Archived", "Paper", paper.Id.ToString(), userId, cancellationToken: ct);
+
+        return new PaperResult(true, PaperId: paper.Id, VersionId: currentVersion.Id);
+    }
+
+    // =========================================================================
+    // Helpers
+    // =========================================================================
+
+    /// <summary>
+    /// Find the open <see cref="WorkflowInstance"/> for a paper. The
+    /// engine guarantees there is at most one open instance per
+    /// (subjectType, subjectId).
+    /// </summary>
+    private Task<WorkflowInstance?> GetActiveInstanceAsync(Guid paperId, CancellationToken ct) =>
+        _db.WorkflowInstances.FirstOrDefaultAsync(wi =>
+            wi.SubjectType == PaperWorkflow.SubjectType
+            && wi.SubjectId == paperId
+            && !wi.IsCompleted, ct);
+
+    /// <summary>
+    /// Resolve the Identity user id of the paper's author. Used to
+    /// route notifications to the correct recipient. Returns an empty
+    /// string if the teacher profile has no associated user (which
+    /// projections handle gracefully by emitting zero notifications).
+    /// </summary>
+    private async Task<string> ResolveAuthorUserIdAsync(Guid teacherProfileId, CancellationToken ct)
+    {
+        var userId = await _db.TeacherProfiles
+            .AsNoTracking()
+            .Where(t => t.Id == teacherProfileId)
+            .Select(t => t.UserId)
+            .FirstOrDefaultAsync(ct);
+
+        return userId ?? string.Empty;
     }
 }
