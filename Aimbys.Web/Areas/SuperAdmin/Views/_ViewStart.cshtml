@@ -1,0 +1,9 @@
+@{
+    Layout = "/Views/Shared/_RoleLayout.cshtml";
+
+    // Layout pulls these three keys; setting them centrally keeps every
+    // SuperAdmin view from having to repeat the metadata.
+    ViewData["RoleArea"] = "SuperAdmin";
+    ViewData["RoleLabel"] = Aimbys.Web.Navigation.RoleNavCatalog.GetRoleLabel("SuperAdmin");
+    ViewData["RoleAccentHex"] = Aimbys.Web.Navigation.RoleNavCatalog.GetAccentHex("SuperAdmin");
+}

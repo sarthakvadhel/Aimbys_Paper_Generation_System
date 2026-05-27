@@ -1,0 +1,27 @@
+@model Aimbys.Web.Areas.Institute.ViewModels.BulkResultViewModel
+@{
+    ViewData["Title"] = "Bulk Result Publish";
+}
+
+<div class="container-fluid py-4 px-3 px-md-4">
+    <header class="mb-4">
+        <div class="text-secondary small text-uppercase" style="letter-spacing:0.08em;">Institute / Bulk Operations</div>
+        <h1 class="h3 fw-bold mt-1 mb-0">Result Publish</h1>
+    </header>
+
+    <article class="bg-body border rounded-3 p-3 p-md-4" style="max-width:720px;">
+        <p class="text-secondary mb-3">Upload a CSV file with a single column: <code>ExamId</code>.</p>
+        <a asp-action="ResultPublishTemplate" class="btn btn-sm btn-outline-secondary mb-3">Download template CSV</a>
+
+        <form asp-action="ResultPublish" method="post" enctype="multipart/form-data">
+            <div asp-validation-summary="All" class="text-danger small mb-2"></div>
+            <div class="mb-3">
+                <label class="form-label fw-semibold">CSV file (max 10MB)</label>
+                <input type="file" name="file" class="form-control" accept=".csv,.xlsx" required />
+            </div>
+            <button type="submit" class="btn btn-primary">Publish</button>
+        </form>
+    </article>
+
+    <partial name="_BulkResult" model="Model" />
+</div>

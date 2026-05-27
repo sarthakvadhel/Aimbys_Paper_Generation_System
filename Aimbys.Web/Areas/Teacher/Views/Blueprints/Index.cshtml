@@ -1,0 +1,28 @@
+@model IEnumerable<Aimbys.Domain.Entities.Blueprints.Blueprint>
+@{
+    ViewData["Title"] = "Blueprints";
+    var tableModel = new Aimbys.Web.Models.UI.DataTableModel(
+        Caption: "Blueprints",
+        Columns: new[]
+        {
+            new Aimbys.Web.Models.UI.DataTableColumn("Name"),
+            new Aimbys.Web.Models.UI.DataTableColumn("Status"),
+            new Aimbys.Web.Models.UI.DataTableColumn("Updated"),
+            new Aimbys.Web.Models.UI.DataTableColumn("Actions", Aimbys.Web.Models.UI.DataTableAlign.End)
+        },
+        Rows: Model.Select(b => new Aimbys.Web.Models.UI.DataTableRow(new Aimbys.Web.Models.UI.DataTableCell[]
+        {
+            new(b.Name),
+            new(b.Status.ToString()),
+            new(b.UpdatedAtUtc.ToString("yyyy-MM-dd")),
+            new($"<a asp-action=\"Edit\" asp-route-id=\"{b.Id}\" class=\"btn btn-sm btn-outline-primary\">Edit</a>", IsHtml: true)
+        })).ToList(),
+        EmptyMessage: "No blueprints yet. Create your first one!");
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0">Blueprints</h4>
+    <a asp-action="Create" class="btn btn-primary btn-sm">New Blueprint</a>
+</div>
+
+<partial name="_DataTable" model="tableModel" />

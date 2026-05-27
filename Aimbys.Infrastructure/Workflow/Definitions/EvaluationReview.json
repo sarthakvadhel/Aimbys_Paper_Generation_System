@@ -1,0 +1,36 @@
+{
+  "key": "EvaluationReview",
+  "version": 1,
+  "description": "Evaluator's lifecycle for an answer-sheet evaluation. Pending -> InProgress -> Submitted -> Returned (loops back).",
+  "states": [
+    "Pending",
+    "InProgress",
+    "Submitted",
+    "Returned"
+  ],
+  "terminalStates": [
+    "Submitted"
+  ],
+  "transitions": [
+    { "fromState": "Pending",    "toState": "InProgress", "requiredRole": "Teacher", "requiredPermission": "CanEvaluate", "queueName": "EvaluationInbox" },
+    { "fromState": "InProgress", "toState": "Submitted",  "requiredRole": "Teacher", "requiredPermission": "CanEvaluate", "queueName": "ModerationInbox" },
+    { "fromState": "Submitted",  "toState": "Returned",   "requiredRole": "Teacher", "requiredPermission": "CanModerate", "queueName": null },
+    { "fromState": "Returned",   "toState": "InProgress", "requiredRole": "Teacher", "requiredPermission": "CanEvaluate", "queueName": "EvaluationInbox" }
+  ],
+  "escalationRules": [
+    {
+      "state": "Pending",
+      "maxDurationMinutes": 2880,
+      "reminderAtPercent": 75,
+      "escalateToRole": "Teacher",
+      "escalateToPermission": "CanAssignEvaluators"
+    },
+    {
+      "state": "InProgress",
+      "maxDurationMinutes": 4320,
+      "reminderAtPercent": 75,
+      "escalateToRole": "InstituteAdmin",
+      "escalateToPermission": null
+    }
+  ]
+}

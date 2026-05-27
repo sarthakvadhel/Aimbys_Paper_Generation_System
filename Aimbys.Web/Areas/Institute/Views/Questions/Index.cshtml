@@ -1,0 +1,89 @@
+@model Aimbys.Web.ViewModels.Questions.QuestionIndexViewModel
+@{
+    ViewData["Title"] = "Question Bank";
+    var hasDrafts = Model.Questions.Any(q => q.Status == Aimbys.Domain.Enums.QuestionStatus.Draft);
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4 class="mb-0">Question Bank</h4>
+    <div class="d-flex gap-2">
+        @if (hasDrafts)
+        {
+            <form asp-action="ApproveAll" method="post">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="btn btn-success btn-sm"
+                        onclick="return confirm('Approve all draft questions?')">
+                    ✓ Approve All Drafts (@Model.Questions.Count(q => q.Status == Aimbys.Domain.Enums.QuestionStatus.Draft))
+                </button>
+            </form>
+        }
+        <a asp-action="Import" class="btn btn-outline-primary btn-sm">
+            <i class="bi bi-upload me-1"></i> Import
+        </a>
+    </div>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-body p-0">
+        @if (!Model.Questions.Any())
+        {
+            <p class="text-muted text-center py-4">No questions in the bank yet. Use Import to add questions.</p>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Question</th>
+                            <th>Type</th>
+                            <th>Subject</th>
+                            <th>Difficulty</th>
+                            <th>Marks</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var q in Model.Questions)
+                        {
+                            <tr>
+                                <td class="text-truncate" style="max-width:250px">
+                                    @Html.Raw(q.BodyPreview)
+                                </td>
+                                <td><span class="badge bg-secondary">@q.Type</span></td>
+                                <td>@q.SubjectName</td>
+                                <td>@q.Difficulty</td>
+                                <td>@q.Marks</td>
+                                <td>
+                                    @{
+                                        var badgeClass = q.Status switch {
+                                            Aimbys.Domain.Enums.QuestionStatus.Approved => "bg-success",
+                                            Aimbys.Domain.Enums.QuestionStatus.Draft    => "bg-warning text-dark",
+                                            Aimbys.Domain.Enums.QuestionStatus.Rejected => "bg-danger",
+                                            _ => "bg-secondary"
+                                        };
+                                    }
+                                    <span class="badge @badgeClass">@q.Status</span>
+                                </td>
+                                <td>
+                                    @if (q.Status == Aimbys.Domain.Enums.QuestionStatus.Draft)
+                                    {
+                                        <form asp-action="Approve" asp-route-id="@q.Id" method="post" class="d-inline">
+                                            @Html.AntiForgeryToken()
+                                            <button type="submit" class="btn btn-success btn-sm">Approve</button>
+                                        </form>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted small">—</span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>

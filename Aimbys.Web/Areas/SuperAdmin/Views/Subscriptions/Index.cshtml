@@ -1,0 +1,106 @@
+@model Aimbys.Web.Areas.SuperAdmin.ViewModels.SubscriptionListViewModel
+@{
+    ViewData["Title"] = "Subscription Management";
+    var success = TempData["Success"] as string;
+    var error = TempData["Error"] as string;
+}
+
+<div class="container-fluid py-4 px-3 px-md-4">
+
+    <header class="mb-4">
+        <div class="text-secondary small text-uppercase" style="letter-spacing: 0.08em;">SuperAdmin / Management</div>
+        <h1 class="h3 fw-bold mt-1 mb-0">Subscription Management</h1>
+    </header>
+
+    @if (!string.IsNullOrEmpty(success))
+    {
+        <div class="alert alert-success" role="status">@success</div>
+    }
+    @if (!string.IsNullOrEmpty(error))
+    {
+        <div class="alert alert-danger" role="alert">@error</div>
+    }
+
+    <article class="bg-body border rounded-3 p-0">
+        <div class="table-responsive">
+            <table class="table align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th scope="col">Institute</th>
+                        <th scope="col">Code</th>
+                        <th scope="col">Tier</th>
+                        <th scope="col">Status</th>
+                        <th scope="col">Expires (UTC)</th>
+                        <th scope="col" class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (Model.Rows.Count == 0)
+                    {
+                        <tr>
+                            <td colspan="6" class="text-center text-secondary py-4">
+                                No institutes found.
+                            </td>
+                        </tr>
+                    }
+                    else
+                    {
+                        foreach (var row in Model.Rows)
+                        {
+                            var tierBadgeClass = row.Tier switch
+                            {
+                                Aimbys.Domain.Enums.LicenseTier.Enterprise => "text-bg-primary",
+                                Aimbys.Domain.Enums.LicenseTier.Premium => "text-bg-info",
+                                _ => "text-bg-secondary"
+                            };
+                            var statusBadgeClass = row.Status switch
+                            {
+                                Aimbys.Domain.Enums.InstituteSubscriptionStatus.Active => "text-bg-success",
+                                Aimbys.Domain.Enums.InstituteSubscriptionStatus.Trial => "text-bg-info",
+                                Aimbys.Domain.Enums.InstituteSubscriptionStatus.Suspended => "text-bg-danger",
+                                Aimbys.Domain.Enums.InstituteSubscriptionStatus.Expired => "text-bg-dark",
+                                Aimbys.Domain.Enums.InstituteSubscriptionStatus.GracePeriod => "text-bg-warning",
+                                Aimbys.Domain.Enums.InstituteSubscriptionStatus.RenewalPending => "text-bg-warning",
+                                _ => "text-bg-secondary"
+                            };
+                            <tr>
+                                <td class="fw-semibold">@row.Name</td>
+                                <td><code>@row.Code</code></td>
+                                <td><span class="badge @tierBadgeClass">@row.Tier</span></td>
+                                <td><span class="badge @statusBadgeClass">@row.Status</span></td>
+                                <td>
+                                    @if (row.ExpiresAtUtc.HasValue)
+                                    {
+                                        <span class="font-monospace small">@row.ExpiresAtUtc.Value.ToString("yyyy-MM-dd")</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-secondary">—</span>
+                                    }
+                                </td>
+                                <td class="text-end">
+                                    <a asp-action="Edit" asp-route-id="@row.InstituteId" class="btn btn-sm btn-outline-primary">Edit</a>
+                                </td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+    </article>
+
+    @if (Model.TotalPages > 1)
+    {
+        <nav class="mt-3" aria-label="Pagination">
+            <ul class="pagination justify-content-center mb-0">
+                @for (var p = 1; p <= Model.TotalPages; p++)
+                {
+                    <li class="page-item @(p == Model.Page ? "active" : "")">
+                        <a class="page-link" asp-action="Index" asp-route-page="@p">@p</a>
+                    </li>
+                }
+            </ul>
+        </nav>
+    }
+
+</div>

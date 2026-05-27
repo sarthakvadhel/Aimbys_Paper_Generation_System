@@ -1,0 +1,36 @@
+@{
+    var area = ViewData["RoleArea"] as string ?? string.Empty;
+    var label = ViewData["RoleLabel"] as string ?? Aimbys.Web.Navigation.RoleNavCatalog.GetRoleLabel(area);
+    var accentHex = ViewData["RoleAccentHex"] as string ?? Aimbys.Web.Navigation.RoleNavCatalog.GetAccentHex(area);
+}
+
+@*
+    Vertical sidebar pinned to the left of the viewport on lg+. Below
+    lg this same partial is rendered inside the offcanvas drawer so
+    the markup stays single-source.
+*@
+
+<aside class="aimbys-role-sidebar d-flex flex-column h-100"
+       data-aimbys-role="@area">
+
+    @await Component.InvokeAsync("Branding")
+
+    <header class="aimbys-role-sidebar__brand d-flex align-items-center gap-3 px-3 py-3">
+        <span class="aimbys-role-sidebar__logo flex-shrink-0" aria-hidden="true"
+              style="background: @accentHex;">
+            <span class="text-white fw-bolder">A</span>
+        </span>
+        <div class="lh-sm">
+            <div class="text-white fw-bold">AIMBYS</div>
+            <div class="small text-uppercase opacity-75" style="letter-spacing: 0.14em; font-size: 0.7rem;">
+                @label
+            </div>
+        </div>
+    </header>
+
+    <div class="aimbys-role-sidebar__nav flex-grow-1 overflow-auto py-2">
+        @await Component.InvokeAsync("RoleNav", new { area })
+    </div>
+
+    @await Component.InvokeAsync("UserMenu", new { area })
+</aside>

@@ -1,0 +1,29 @@
+{
+  "key": "PaperApproval",
+  "version": 1,
+  "description": "Paper generation + institute-admin approval. Draft -> submitted -> approved/returned.",
+  "states": [
+    "Draft",
+    "SubmittedForApproval",
+    "Approved",
+    "Returned"
+  ],
+  "terminalStates": [
+    "Approved"
+  ],
+  "transitions": [
+    { "fromState": "Draft",                "toState": "SubmittedForApproval", "requiredRole": "Teacher",        "requiredPermission": "CanGeneratePaper", "queueName": "PaperApproval" },
+    { "fromState": "SubmittedForApproval", "toState": "Approved",             "requiredRole": "InstituteAdmin", "queueName": null },
+    { "fromState": "SubmittedForApproval", "toState": "Returned",             "requiredRole": "InstituteAdmin", "queueName": null },
+    { "fromState": "Returned",             "toState": "Draft",                "requiredRole": "Teacher",        "requiredPermission": "CanGeneratePaper", "queueName": null }
+  ],
+  "escalationRules": [
+    {
+      "state": "SubmittedForApproval",
+      "maxDurationMinutes": 1440,
+      "reminderAtPercent": 75,
+      "escalateToRole": "InstituteAdmin",
+      "escalateToPermission": null
+    }
+  ]
+}

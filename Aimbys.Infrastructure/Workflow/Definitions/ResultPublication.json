@@ -1,0 +1,26 @@
+{
+  "key": "ResultPublication",
+  "version": 1,
+  "description": "Result-set publication lifecycle. PendingPublication -> Published -> Archived.",
+  "states": [
+    "PendingPublication",
+    "Published",
+    "Archived"
+  ],
+  "terminalStates": [
+    "Archived"
+  ],
+  "transitions": [
+    { "fromState": "PendingPublication", "toState": "Published", "requiredRole": "Teacher",        "requiredPermission": "CanPublishResults", "queueName": "ResultPublication" },
+    { "fromState": "Published",          "toState": "Archived",  "requiredRole": "InstituteAdmin", "queueName": null }
+  ],
+  "escalationRules": [
+    {
+      "state": "PendingPublication",
+      "maxDurationMinutes": 1440,
+      "reminderAtPercent": 75,
+      "escalateToRole": "InstituteAdmin",
+      "escalateToPermission": null
+    }
+  ]
+}

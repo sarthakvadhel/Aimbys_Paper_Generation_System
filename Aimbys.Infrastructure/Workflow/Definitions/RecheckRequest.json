@@ -1,0 +1,35 @@
+{
+  "key": "RecheckRequest",
+  "version": 1,
+  "description": "Recheck-request lifecycle. Submitted -> Assigned -> Completed -> Closed.",
+  "states": [
+    "Submitted",
+    "Assigned",
+    "Completed",
+    "Closed"
+  ],
+  "terminalStates": [
+    "Closed"
+  ],
+  "transitions": [
+    { "fromState": "Submitted", "toState": "Assigned",  "requiredRole": "InstituteAdmin", "queueName": "RecheckInbox" },
+    { "fromState": "Assigned",  "toState": "Completed", "requiredRole": "Teacher",        "requiredPermission": "CanEvaluate", "queueName": null },
+    { "fromState": "Completed", "toState": "Closed",    "requiredRole": "InstituteAdmin", "queueName": null }
+  ],
+  "escalationRules": [
+    {
+      "state": "Submitted",
+      "maxDurationMinutes": 1440,
+      "reminderAtPercent": 75,
+      "escalateToRole": "InstituteAdmin",
+      "escalateToPermission": null
+    },
+    {
+      "state": "Assigned",
+      "maxDurationMinutes": 4320,
+      "reminderAtPercent": 75,
+      "escalateToRole": "InstituteAdmin",
+      "escalateToPermission": null
+    }
+  ]
+}

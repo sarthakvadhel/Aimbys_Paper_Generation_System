@@ -1,0 +1,33 @@
+@{
+    ViewData["Title"] = "Create Blueprint";
+    var subjects = ViewBag.Subjects as IEnumerable<Aimbys.Domain.Entities.Subject> ?? Enumerable.Empty<Aimbys.Domain.Entities.Subject>();
+}
+
+<h4>Create Blueprint</h4>
+
+<form asp-action="Create" method="post" class="mt-3" style="max-width: 600px;">
+    <div class="mb-3">
+        <label class="form-label">Name</label>
+        <input type="text" name="name" class="form-control" required />
+    </div>
+    <div class="mb-3">
+        <label class="form-label">Subject</label>
+        <select name="subjectId" class="form-select" required>
+            <option value="">-- Select Subject --</option>
+            @foreach (var s in subjects)
+            {
+                <option value="@s.Id">@s.Name</option>
+            }
+        </select>
+    </div>
+    <div class="mb-3">
+        <label class="form-label">Total Marks</label>
+        <input type="number" name="totalMarks" class="form-control" value="100" min="1" required />
+    </div>
+    <div class="mb-3">
+        <label class="form-label">Duration (minutes)</label>
+        <input type="number" name="durationMinutes" class="form-control" value="180" min="1" required />
+    </div>
+    <button type="submit" class="btn btn-primary">Create</button>
+    <a asp-action="Index" class="btn btn-outline-secondary ms-2">Cancel</a>
+</form>

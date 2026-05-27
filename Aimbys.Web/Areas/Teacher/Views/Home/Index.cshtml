@@ -1,0 +1,120 @@
+@using Aimbys.Web.Models.UI
+@using Aimbys.Web.ViewComponents
+@{
+    ViewData["Title"] = "Dashboard";
+
+    var recentPapers = new DataTableModel(
+        Caption: "Recent papers",
+        Columns: new[]
+        {
+            new DataTableColumn("ID"),
+            new DataTableColumn("Title"),
+            new DataTableColumn("Created"),
+            new DataTableColumn("Status"),
+            new DataTableColumn("Qs", DataTableAlign.End),
+            new DataTableColumn("Marks", DataTableAlign.End)
+        },
+        Rows: new[]
+        {
+            PaperRow("P-2024-0841", "Mathematics XII — Unit Test 3",            "2026-05-20", "approved", "30", "80"),
+            PaperRow("P-2024-0832", "Mathematics XI — Trigonometry Mid-term",   "2026-05-18", "pending",  "40", "100"),
+            PaperRow("P-2024-0820", "Mathematics X — Algebra Chapter Test",     "2026-05-15", "approved", "25", "60"),
+            PaperRow("P-2024-0811", "Mathematics XII — Calculus Final Exam",    "2026-05-10", "draft",    "50", "120")
+        });
+
+    var pendingEvals = new DataTableModel(
+        Caption: "Pending evaluations",
+        Columns: new[]
+        {
+            new DataTableColumn("Student"),
+            new DataTableColumn("Exam"),
+            new DataTableColumn("Submitted"),
+            new DataTableColumn("Type"),
+            new DataTableColumn("Qs", DataTableAlign.End)
+        },
+        Rows: new[]
+        {
+            Row("Riya Patel",   "Math XII Unit Test 3",      "2026-05-21 10:00", "Descriptive", "3"),
+            Row("Arjun Rao",    "Math XII Unit Test 3",      "2026-05-21 10:05", "Descriptive", "3"),
+            Row("Meera Joshi",  "Math XI Trigonometry",      "2026-05-20 14:30", "Descriptive", "4")
+        });
+}
+
+@functions {
+    DataTableRow Row(params string[] cells) =>
+        new(cells.Select(c => new DataTableCell(c)).ToArray());
+
+    DataTableRow PaperRow(string id, string title, string created, string status, string qs, string marks) =>
+        new(new[]
+        {
+            new DataTableCell(id),
+            new DataTableCell(title),
+            new DataTableCell(created),
+            new DataTableCell(Aimbys.Web.Models.UI.StatusBadge.Render(status), IsHtml: true),
+            new DataTableCell(qs),
+            new DataTableCell(marks)
+        });
+}
+
+@*
+    Teacher dashboard. Mirrors `TeacherDashboard.tsx`: 4 KPI tiles,
+    class-avg bar chart, pending-evaluations table, recent-papers
+    table. Wires through to the Chunk 16 view components.
+*@
+
+<div class="container-fluid py-4 px-3 px-md-4">
+
+    <header class="mb-4">
+        <div class="text-secondary small text-uppercase" style="letter-spacing: 0.08em;">Teacher / Dashboard</div>
+        <h1 class="h3 fw-bold mt-1 mb-0">Welcome back, @User.Identity?.Name</h1>
+    </header>
+
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-xl-3">
+            @await Component.InvokeAsync("KpiCard", new { label = "Papers Created",       value = "84",    sub = "This year",            iconKey = "file-earmark-text", accentHex = "#0369a1" })
+        </div>
+        <div class="col-6 col-xl-3">
+            @await Component.InvokeAsync("KpiCard", new { label = "Pending Approval",     value = "3",     sub = "Awaiting review",      iconKey = "activity",          accentHex = "#d97706" })
+        </div>
+        <div class="col-6 col-xl-3">
+            @await Component.InvokeAsync("KpiCard", new { label = "Pending Evaluations",  value = "14",    sub = "Descriptive answers",  iconKey = "pen",               accentHex = "#dc2626" })
+        </div>
+        <div class="col-6 col-xl-3">
+            @await Component.InvokeAsync("KpiCard", new { label = "Avg Class Score",      value = "71.2%", sub = "↑ 2.8% vs last term",  trend = KpiTrend.Up, iconKey = "graph-up", accentHex = "#15803d" })
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-xl-5">
+            @await Component.InvokeAsync("ChartCard", new
+            {
+                title = "Class Average Scores",
+                subtitle = "Per-class average across recent assessments",
+                dataUrl = Url.Action("ClassAvgData", "Home", new { area = "Teacher" }),
+                chartType = "bar",
+                height = 240
+            })
+        </div>
+        <div class="col-12 col-xl-7">
+            <article class="aimbys-chart-card h-100 bg-body border rounded-3 p-3 p-md-4">
+                <header class="mb-3 d-flex flex-wrap align-items-center justify-content-between gap-2">
+                    <div>
+                        <h2 class="h6 fw-semibold mb-0">Pending Evaluations</h2>
+                        <p class="text-secondary small mb-0 mt-1">Descriptive answers awaiting grading</p>
+                    </div>
+                    <span class="badge text-bg-primary">@pendingEvals.Rows.Count</span>
+                </header>
+                <partial name="_DataTable" model="pendingEvals" />
+            </article>
+        </div>
+    </div>
+
+    <article class="aimbys-chart-card bg-body border rounded-3 p-3 p-md-4">
+        <header class="mb-3">
+            <h2 class="h6 fw-semibold mb-0">Recent Papers</h2>
+            <p class="text-secondary small mb-0 mt-1">Drafts, pending and approved</p>
+        </header>
+        <partial name="_DataTable" model="recentPapers" />
+    </article>
+
+</div>

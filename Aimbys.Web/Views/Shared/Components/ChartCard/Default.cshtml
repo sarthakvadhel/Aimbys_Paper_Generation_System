@@ -1,0 +1,29 @@
+@using Aimbys.Web.ViewComponents
+@model ChartCardViewModel
+
+@*
+    The canvas opts in to chart-binding through `data-aimbys-chart`.
+    `wwwroot/js/charts.js` finds every such canvas on DOMContentLoaded,
+    fetches its `data-aimbys-chart-url` JSON, and renders the chart.
+    Failures are logged and replaced by a small fallback caption so a
+    JSON 500 doesn't leave a silent blank box.
+*@
+
+<article class="aimbys-chart-card h-100 bg-body border rounded-3 p-3 p-md-4 d-flex flex-column">
+    <header class="mb-2">
+        <h2 class="h6 fw-semibold mb-0">@Model.Title</h2>
+        @if (!string.IsNullOrEmpty(Model.Subtitle))
+        {
+            <p class="text-secondary small mb-0 mt-1">@Model.Subtitle</p>
+        }
+    </header>
+
+    <div class="aimbys-chart-card__canvas position-relative flex-grow-1"
+         style="min-height: @(Model.Height)px;">
+        <canvas id="@Model.CanvasId"
+                data-aimbys-chart="@Model.ChartType"
+                data-aimbys-chart-url="@Model.DataUrl"
+                aria-label="@Model.Title chart"
+                role="img"></canvas>
+    </div>
+</article>

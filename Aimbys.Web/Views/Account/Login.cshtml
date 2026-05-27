@@ -1,0 +1,50 @@
+@model Aimbys.Web.ViewModels.Account.LoginViewModel
+@{
+    ViewData["Title"] = "Sign in";
+}
+
+<section class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-6 col-lg-5">
+            <div class="bg-body rounded shadow-sm border p-4 p-md-5">
+                <h1 class="h4 fw-bold mb-3">Sign in</h1>
+
+                <form asp-action="Login" method="post" novalidate>
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" asp-for="ReturnUrl" />
+
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger d-none-if-empty"></div>
+
+                    <div class="mb-3">
+                        <label asp-for="Email" class="form-label"></label>
+                        <input asp-for="Email" class="form-control" autocomplete="username" autofocus />
+                        <span asp-validation-for="Email" class="text-danger small"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Password" class="form-label"></label>
+                        <input asp-for="Password" class="form-control" autocomplete="current-password" />
+                        <span asp-validation-for="Password" class="text-danger small"></span>
+                    </div>
+
+                    <div class="form-check mb-3">
+                        <input asp-for="RememberMe" class="form-check-input" />
+                        <label asp-for="RememberMe" class="form-check-label"></label>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100">Sign in</button>
+                </form>
+
+                <hr class="my-4" />
+                <p class="small mb-0 text-secondary">
+                    Don't have an account?
+                    <a asp-action="Register" asp-route-returnUrl="@Model.ReturnUrl">Register</a>
+                </p>
+            </div>
+        </div>
+    </div>
+</section>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

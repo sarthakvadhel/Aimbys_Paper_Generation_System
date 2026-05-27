@@ -1,0 +1,80 @@
+@model Aimbys.Web.ViewModels.Users.BulkImportResultViewModel
+@{
+    ViewData["Title"] = "Bulk Import Students";
+}
+
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <h5 class="mb-0">Bulk Import Students</h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted small mb-1">
+                    CSV header: <code>Email,DisplayName,AdmissionNumber,RollNumber,ClassBatchName,Password</code>
+                </p>
+                <p class="text-muted small mb-3">
+                    The <code>Password</code> column is optional. If omitted a random temporary password is generated.
+                    All imported students must change their password on first login.
+                </p>
+
+                <form asp-action="BulkImport" method="post" enctype="multipart/form-data">
+                    @Html.AntiForgeryToken()
+                    <div class="mb-3">
+                        <label for="file" class="form-label">CSV File</label>
+                        <input type="file" name="file" id="file" class="form-control" accept=".csv" />
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">Import</button>
+                        <a asp-action="Index" class="btn btn-outline-secondary">Back</a>
+                    </div>
+                </form>
+
+                @if (Model.HasResult)
+                {
+                    <hr />
+                    <div class="alert alert-info mt-3">
+                        <strong>@Model.SuccessCount</strong> student(s) imported successfully.
+                    </div>
+
+                    @if (Model.Credentials.Any())
+                    {
+                        <div class="alert alert-warning">
+                            <strong>⚠ Save these credentials now — they will not be shown again.</strong>
+                            <p class="small mb-2 mt-1">All students must change their password on first login.</p>
+                            <div class="table-responsive">
+                                <table class="table table-sm table-bordered mb-0 bg-white">
+                                    <thead class="table-light">
+                                        <tr><th>Email</th><th>Temporary Password</th></tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var c in Model.Credentials)
+                                        {
+                                            <tr>
+                                                <td>@c.Email</td>
+                                                <td><code>@c.TemporaryPassword</code></td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    }
+
+                    @if (Model.Errors.Count > 0)
+                    {
+                        <div class="alert alert-warning">
+                            <strong>@Model.Errors.Count error(s):</strong>
+                            <ul class="mb-0 mt-2">
+                                @foreach (var err in Model.Errors)
+                                {
+                                    <li>@err</li>
+                                }
+                            </ul>
+                        </div>
+                    }
+                }
+            </div>
+        </div>
+    </div>
+</div>

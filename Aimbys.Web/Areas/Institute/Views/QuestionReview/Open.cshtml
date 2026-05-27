@@ -1,0 +1,59 @@
+@model Aimbys.Domain.Entities.Questions.Question
+@{
+    ViewData["Title"] = "Review Question";
+    var latestVersion = Model.Versions.OrderByDescending(v => v.VersionNumber).FirstOrDefault();
+}
+
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0">Question Details</h5>
+    </div>
+    <div class="card-body">
+        <dl class="row">
+            <dt class="col-sm-3">Question ID</dt>
+            <dd class="col-sm-9">@Model.Id</dd>
+
+            <dt class="col-sm-3">Subject ID</dt>
+            <dd class="col-sm-9">@Model.SubjectId</dd>
+
+            <dt class="col-sm-3">Status</dt>
+            <dd class="col-sm-9"><span class="badge bg-info">@Model.Status</span></dd>
+
+            @if (latestVersion is not null)
+            {
+                <dt class="col-sm-3">Marks</dt>
+                <dd class="col-sm-9">@latestVersion.Marks</dd>
+
+                <dt class="col-sm-3">Body</dt>
+                <dd class="col-sm-9">@Html.Raw(latestVersion.BodyHtml)</dd>
+            }
+        </dl>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">Verdict</h5>
+    </div>
+    <div class="card-body">
+        <form method="post" asp-action="Approve" asp-route-questionId="@Model.Id" class="d-inline">
+            @Html.AntiForgeryToken()
+            <div class="mb-3">
+                <label for="approveComment" class="form-label">Comment (optional)</label>
+                <textarea class="form-control" id="approveComment" name="comment" rows="2"></textarea>
+            </div>
+            <button type="submit" class="btn btn-success">Approve</button>
+        </form>
+
+        <hr />
+
+        <form method="post" asp-action="Reject" asp-route-questionId="@Model.Id">
+            @Html.AntiForgeryToken()
+            <div class="mb-3">
+                <label for="rejectComment" class="form-label">Comment (required)</label>
+                <textarea class="form-control" id="rejectComment" name="comment" rows="2" required></textarea>
+            </div>
+            <button type="submit" class="btn btn-danger">Reject</button>
+        </form>
+    </div>
+</div>

@@ -1,0 +1,45 @@
+@*
+    Coloured Bootstrap badge keyed off a status string. Used by
+    workflow / approval / evaluation rows. The mapping mirrors the
+    React `statusBadge(...)` helpers from the dashboard sources:
+      approved / operational / success → green
+      pending / warning                → amber
+      degraded / draft                 → grey
+      critical / failed / error        → red
+      info / submitted                 → blue
+*@
+
+@model string
+
+@{
+    var key = (Model ?? string.Empty).Trim().ToLowerInvariant();
+    var classes = key switch
+    {
+        "approved"    => "text-bg-success",
+        "operational" => "text-bg-success",
+        "success"     => "text-bg-success",
+        "active"      => "text-bg-success",
+
+        "pending"     => "text-bg-warning",
+        "warning"     => "text-bg-warning",
+
+        "degraded"    => "text-bg-secondary",
+        "draft"       => "text-bg-secondary",
+        "archived"    => "text-bg-secondary",
+
+        "critical"    => "text-bg-danger",
+        "failed"      => "text-bg-danger",
+        "error"       => "text-bg-danger",
+        "rejected"    => "text-bg-danger",
+
+        "info"        => "text-bg-info",
+        "submitted"   => "text-bg-info",
+
+        _             => "text-bg-light"
+    };
+    var label = string.IsNullOrEmpty(Model) ? "Unknown" : char.ToUpper(Model[0]) + Model.Substring(1);
+}
+
+<span class="badge rounded-pill text-uppercase @classes" style="font-size: 0.7rem; letter-spacing: 0.04em;">
+    @label
+</span>

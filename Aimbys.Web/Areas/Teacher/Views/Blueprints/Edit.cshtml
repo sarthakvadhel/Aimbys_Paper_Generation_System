@@ -1,0 +1,54 @@
+@model Aimbys.Domain.Entities.Blueprints.Blueprint
+@{
+    ViewData["Title"] = $"Edit Blueprint — {Model.Name}";
+    var currentVersion = Model.Versions.FirstOrDefault(v => v.Id == Model.CurrentVersionId);
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0">@Model.Name</h4>
+    <span class="badge bg-secondary">@Model.Status</span>
+</div>
+
+@if (currentVersion is not null)
+{
+    <div class="card mb-3">
+        <div class="card-body">
+            <p><strong>Version:</strong> @currentVersion.VersionNumber</p>
+            <p><strong>Total Marks:</strong> @currentVersion.TotalMarks</p>
+            <p><strong>Duration:</strong> @currentVersion.DurationMinutes min</p>
+            <p><strong>Locked:</strong> @(currentVersion.IsLocked ? "Yes" : "No")</p>
+        </div>
+    </div>
+}
+
+<div class="card mb-3">
+    <div class="card-header">Matrix Editor</div>
+    <div class="card-body">
+        <p class="text-muted">Competency matrix editor placeholder — full UI ships in a follow-up chunk.</p>
+    </div>
+</div>
+
+<form asp-action="Edit" asp-route-id="@Model.Id" method="post" class="mt-3" style="max-width: 600px;">
+    <div class="mb-3">
+        <label class="form-label">Total Marks</label>
+        <input type="number" name="totalMarks" class="form-control" value="@(currentVersion?.TotalMarks ?? 100)" min="1" required />
+    </div>
+    <div class="mb-3">
+        <label class="form-label">Duration (minutes)</label>
+        <input type="number" name="durationMinutes" class="form-control" value="@(currentVersion?.DurationMinutes ?? 180)" min="1" required />
+    </div>
+    <button type="submit" class="btn btn-primary">Save</button>
+</form>
+
+<div class="mt-3">
+    @if (Model.Status != Aimbys.Domain.Enums.BlueprintStatus.Published)
+    {
+        <form asp-action="Publish" asp-route-id="@Model.Id" method="post" class="d-inline">
+            <button type="submit" class="btn btn-success btn-sm">Publish</button>
+        </form>
+    }
+    <form asp-action="Archive" asp-route-id="@Model.Id" method="post" class="d-inline ms-2">
+        <button type="submit" class="btn btn-outline-danger btn-sm">Archive</button>
+    </form>
+    <a asp-action="Index" class="btn btn-outline-secondary btn-sm ms-2">Back</a>
+</div>

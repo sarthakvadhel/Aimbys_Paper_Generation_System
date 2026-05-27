@@ -1,0 +1,54 @@
+@using Aimbys.Web.Navigation
+@model Aimbys.Web.ViewComponents.RoleNavViewModel
+
+@*
+    Mobile bottom-tab variant. Renders the FIRST link of each
+    section so the bar stays compact (most shells have 1-2 sections,
+    and a 4-tab cap is the right call for thumb-reach). Disabled
+    links still render but use `aria-disabled` and a muted glyph.
+*@
+
+@{
+    var primaryLinks = Model.Sections
+        .Select(s => s.Links.FirstOrDefault())
+        .Where(l => l is not null)
+        .Take(4)
+        .ToList();
+}
+
+<nav class="aimbys-role-bottombar d-flex justify-content-around align-items-center"
+     aria-label="Mobile navigation">
+    @foreach (var link in primaryLinks)
+    {
+        var isActive = Model.IsActive(link!);
+        var iconPath = Aimbys.Web.Navigation.RoleNavIcons.Get(link!.IconKey);
+        var classes = "aimbys-role-bottombar__link d-flex flex-column align-items-center gap-1 small flex-grow-1 py-2";
+        if (isActive)        { classes += " aimbys-role-bottombar__link--active"; }
+        if (!link.IsImplemented) { classes += " aimbys-role-bottombar__link--disabled"; }
+
+        if (link.IsImplemented)
+        {
+            <a class="@classes"
+               aria-current="@(isActive ? "page" : null)"
+               asp-area="@link.Area"
+               asp-controller="@link.Controller"
+               asp-action="@link.Action">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18"
+                     fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+                    <path d="@iconPath" />
+                </svg>
+                <span>@link.Label</span>
+            </a>
+        }
+        else
+        {
+            <span class="@classes" aria-disabled="true">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18"
+                     fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+                    <path d="@iconPath" />
+                </svg>
+                <span>@link.Label</span>
+            </span>
+        }
+    }
+</nav>

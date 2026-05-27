@@ -1,0 +1,19 @@
+@model Aimbys.Web.Models.UI.HeatmapModel
+
+<div class="aimbys-heatmap" style="display: grid; grid-template-columns: repeat(@(Model.Columns.Count + 1), 1fr); gap: 2px;">
+    <div class="aimbys-heatmap__header"></div>
+    @foreach (var col in Model.Columns)
+    {
+        <div class="aimbys-heatmap__header small text-center fw-semibold">@col</div>
+    }
+    @foreach (var row in Model.Rows)
+    {
+        <div class="aimbys-heatmap__label small fw-medium">@row.Label</div>
+        @foreach (var cell in row.Values)
+        {
+            var opacity = Math.Clamp(cell / 100.0, 0, 1);
+            var bg = cell >= 70 ? $"rgba(21,128,61,{opacity:F2})" : cell >= 40 ? $"rgba(29,78,216,{opacity:F2})" : $"rgba(220,38,38,{opacity:F2})";
+            <div class="aimbys-heatmap__cell rounded-1 text-center small" style="background: @bg; color: #fff; padding: 4px;">@cell%</div>
+        }
+    }
+</div>

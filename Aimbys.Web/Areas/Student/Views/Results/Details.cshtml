@@ -1,0 +1,70 @@
+@using Aimbys.Application.Results
+@model StudentResultView
+@{
+    ViewData["Title"] = "Result Details";
+}
+
+<div class="container-fluid py-4">
+    <h1 class="h3 mb-4">Result Details</h1>
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <dl class="row">
+                <dt class="col-sm-3">Total Score</dt>
+                <dd class="col-sm-9">@Model.TotalScore / @Model.MaxScore</dd>
+                <dt class="col-sm-3">Percentage</dt>
+                <dd class="col-sm-9">@Model.Percentage.ToString("F1")%</dd>
+                <dt class="col-sm-3">Grade</dt>
+                <dd class="col-sm-9">@(Model.Grade ?? "—")</dd>
+                <dt class="col-sm-3">Rank</dt>
+                <dd class="col-sm-9">@(Model.Rank?.ToString() ?? "—")</dd>
+            </dl>
+        </div>
+    </div>
+
+    @if (Model.Answers.Any())
+    {
+        <div class="card shadow-sm">
+            <div class="card-header">Per-Answer Breakdown</div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Answer</th>
+                                <th>Points Awarded</th>
+                                <th>Max Points</th>
+                                <th>Source</th>
+                                <th>Appeal</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var answer in Model.Answers)
+                            {
+                                <tr>
+                                    <td>@answer.AnswerId.ToString()[..8]…</td>
+                                    <td>@answer.PointsAwarded</td>
+                                    <td>@answer.MaxPoints</td>
+                                    <td><span class="badge bg-info">@answer.Source</span></td>
+                                    <td>
+                                        <a asp-action="Appeal" asp-route-attemptAnswerId="@answer.AnswerId" class="btn btn-sm btn-outline-warning">
+                                            File Appeal
+                                        </a>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="card shadow-sm">
+            <div class="card-body text-muted">
+                <p>Per-answer breakdown not yet available (V1 placeholder).</p>
+            </div>
+        </div>
+    }
+</div>

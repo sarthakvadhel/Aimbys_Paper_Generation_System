@@ -1,0 +1,149 @@
+@using Aimbys.Web.Models.UI
+@using Aimbys.Web.ViewComponents
+@{
+    ViewData["Title"] = "Dashboard";
+
+    var pendingApprovals = new DataTableModel(
+        Caption: "Pending approvals",
+        Columns: new[]
+        {
+            new DataTableColumn("ID"),
+            new DataTableColumn("Institute"),
+            new DataTableColumn("Type"),
+            new DataTableColumn("Submitted"),
+            new DataTableColumn("Tier")
+        },
+        Rows: new[]
+        {
+            Row("INST-2024-0892", "Govt. Polytechnic Nagpur",     "New Institute",   "2 hrs ago",   "Government"),
+            Row("INST-2024-0891", "Delhi Public School Chain",    "License Upgrade", "4 hrs ago",   "Private"),
+            Row("INST-2024-0890", "IIT Entrance Academy",         "Feature Request", "6 hrs ago",   "Coaching"),
+            Row("INST-2024-0889", "Maharashtra Board Cells",      "Data Migration",  "1 day ago",   "Government")
+        });
+
+    var systemHealth = new DataTableModel(
+        Caption: "Service status",
+        Columns: new[]
+        {
+            new DataTableColumn("Service"),
+            new DataTableColumn("Status"),
+            new DataTableColumn("Uptime", DataTableAlign.End),
+            new DataTableColumn("Latency", DataTableAlign.End)
+        },
+        Rows: new[]
+        {
+            HealthRow("API Gateway",      "operational", "99.98%", "42ms"),
+            HealthRow("Database Cluster", "operational", "99.99%", "8ms"),
+            HealthRow("File Storage",     "operational", "99.97%", "124ms"),
+            HealthRow("Auth Service",     "operational", "100%",   "18ms"),
+            HealthRow("Eval Engine",      "degraded",    "98.4%",  "380ms"),
+            HealthRow("Notification Bus", "operational", "99.92%", "56ms")
+        });
+}
+
+@functions {
+    DataTableRow Row(params string[] cells) =>
+        new(cells.Select(c => new DataTableCell(c)).ToArray());
+
+    DataTableRow HealthRow(string service, string status, string uptime, string latency) =>
+        new(new[]
+        {
+            new DataTableCell(service),
+            new DataTableCell(
+                Aimbys.Web.Models.UI.StatusBadge.Render(status),
+                IsHtml: true),
+            new DataTableCell(uptime),
+            new DataTableCell(latency)
+        });
+}
+
+@*
+    SuperAdmin dashboard. Mirrors the React `SuperAdminDashboard.tsx`
+    layout: 4 KPI tiles, platform-activity area chart, license
+    doughnut, regional bar chart, system-health table, pending-
+    approvals table. V1 chart endpoints return seed data; later
+    chunks swap in real EF queries.
+*@
+
+<div class="container-fluid py-4 px-3 px-md-4">
+
+    <header class="mb-4">
+        <div class="text-secondary small text-uppercase" style="letter-spacing: 0.08em;">SuperAdmin / Dashboard</div>
+        <h1 class="h3 fw-bold mt-1 mb-0">Platform Overview</h1>
+    </header>
+
+    @* ---------- KPI tiles ---------- *@
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-xl-3">
+            @await Component.InvokeAsync("KpiCard", new { label = "Total Institutes",  value = "2,418",     sub = "+12 this month",          trend = KpiTrend.Up, iconKey = "building",          accentHex = "#1d4ed8" })
+        </div>
+        <div class="col-6 col-xl-3">
+            @await Component.InvokeAsync("KpiCard", new { label = "Registered Users",  value = "12,84,302", sub = "+8,420 this week",         trend = KpiTrend.Up, iconKey = "people",            accentHex = "#0369a1" })
+        </div>
+        <div class="col-6 col-xl-3">
+            @await Component.InvokeAsync("KpiCard", new { label = "Papers Generated",  value = "8,51,240",  sub = "+1,420 today",             trend = KpiTrend.Up, iconKey = "file-earmark-text", accentHex = "#7c3aed" })
+        </div>
+        <div class="col-6 col-xl-3">
+            @await Component.InvokeAsync("KpiCard", new { label = "Active Exams Now",  value = "284",       sub = "12,400 candidates online", trend = KpiTrend.Up, iconKey = "activity",          accentHex = "#15803d" })
+        </div>
+    </div>
+
+    @* ---------- Charts row ---------- *@
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-xl-8">
+            @await Component.InvokeAsync("ChartCard", new
+            {
+                title = "Platform Activity (24h)",
+                subtitle = "Active logins, exams in progress, and paper events",
+                dataUrl = Url.Action("PlatformActivityData", "Home", new { area = "SuperAdmin" }),
+                chartType = "line",
+                height = 260
+            })
+        </div>
+        <div class="col-12 col-xl-4">
+            @await Component.InvokeAsync("ChartCard", new
+            {
+                title = "License Tier Mix",
+                subtitle = "Active license distribution",
+                dataUrl = Url.Action("LicenseData", "Home", new { area = "SuperAdmin" }),
+                chartType = "doughnut",
+                height = 260
+            })
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-xl-7">
+            @await Component.InvokeAsync("ChartCard", new
+            {
+                title = "Regional Distribution",
+                subtitle = "Institutes by state (top 7)",
+                dataUrl = Url.Action("RegionalData", "Home", new { area = "SuperAdmin" }),
+                chartType = "bar",
+                height = 260
+            })
+        </div>
+        <div class="col-12 col-xl-5">
+            <article class="aimbys-chart-card h-100 bg-body border rounded-3 p-3 p-md-4">
+                <header class="mb-3">
+                    <h2 class="h6 fw-semibold mb-0">Service Status</h2>
+                    <p class="text-secondary small mb-0 mt-1">Live platform-service health</p>
+                </header>
+                <partial name="_DataTable" model="systemHealth" />
+            </article>
+        </div>
+    </div>
+
+    @* ---------- Pending approvals ---------- *@
+    <article class="aimbys-chart-card bg-body border rounded-3 p-3 p-md-4">
+        <header class="mb-3 d-flex flex-wrap align-items-center justify-content-between gap-2">
+            <div>
+                <h2 class="h6 fw-semibold mb-0">Pending Approvals</h2>
+                <p class="text-secondary small mb-0 mt-1">SuperAdmin governance inbox</p>
+            </div>
+            <span class="badge text-bg-primary">@pendingApprovals.Rows.Count</span>
+        </header>
+        <partial name="_DataTable" model="pendingApprovals" />
+    </article>
+
+</div>

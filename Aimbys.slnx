@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="Aimbys.Application/Aimbys.Application.csproj" />
+  <Project Path="Aimbys.Domain/Aimbys.Domain.csproj" />
+  <Project Path="Aimbys.Infrastructure/Aimbys.Infrastructure.csproj" />
+  <Project Path="Aimbys.Web/Aimbys.Web.csproj" />
+</Solution>

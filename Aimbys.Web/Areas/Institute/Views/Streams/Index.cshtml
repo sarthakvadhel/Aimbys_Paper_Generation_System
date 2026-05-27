@@ -1,0 +1,27 @@
+@model IEnumerable<Aimbys.Domain.Entities.Stream>
+@{
+    ViewData["Title"] = "Streams";
+    var tableModel = new Aimbys.Web.Models.UI.DataTableModel(
+        Caption: "Streams",
+        Columns: new[]
+        {
+            new Aimbys.Web.Models.UI.DataTableColumn("Name"),
+            new Aimbys.Web.Models.UI.DataTableColumn("Description"),
+            new Aimbys.Web.Models.UI.DataTableColumn("Created"),
+            new Aimbys.Web.Models.UI.DataTableColumn("Actions", Aimbys.Web.Models.UI.DataTableAlign.End)
+        },
+        Rows: Model.Select(s => new Aimbys.Web.Models.UI.DataTableRow(new Aimbys.Web.Models.UI.DataTableCell[]
+        {
+            new(s.Name),
+            new(s.Description ?? "—"),
+            new(s.CreatedAtUtc.ToString("yyyy-MM-dd")),
+            new($"<a href=\"#\" class=\"btn btn-sm btn-outline-danger\">Delete</a>", IsHtml: true)
+        })).ToList(),
+        EmptyMessage: "No streams configured yet.");
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0">Streams</h4>
+</div>
+
+<partial name="_DataTable" model="tableModel" />

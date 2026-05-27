@@ -1,0 +1,91 @@
+@model Aimbys.Domain.Entities.Papers.Paper
+@using Aimbys.Domain.Entities.Questions
+@{
+    ViewData["Title"] = "Paper Preview";
+    Layout = null;
+    var currentVersion = Model.Versions.FirstOrDefault(v => v.Id == Model.CurrentVersionId)
+                      ?? Model.Versions.OrderByDescending(v => v.VersionNumber).FirstOrDefault();
+    var qVersions = ViewBag.QuestionVersions as Dictionary<Guid, QuestionVersion>
+                    ?? new Dictionary<Guid, QuestionVersion>();
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <title>@(currentVersion?.Title ?? "Paper Preview")</title>
+    <style>
+        body { font-family: 'Times New Roman', serif; max-width: 820px; margin: 2rem auto; padding: 0 1.5rem; color: #111; }
+        .no-print { margin-bottom: 1rem; }
+        .header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 1rem; margin-bottom: 1.5rem; }
+        .header h1 { font-size: 1.4rem; margin: 0 0 0.25rem; }
+        .meta { display: flex; justify-content: space-between; margin-bottom: 2rem; font-size: 0.9rem; }
+        .section-header { background: #f0f0f0; padding: 0.4rem 0.8rem; font-weight: bold; margin: 1.5rem 0 0.75rem; border-left: 4px solid #333; }
+        .question { padding: 0.6rem 0; border-bottom: 1px dotted #ccc; display: flex; gap: 0.5rem; }
+        .q-num { font-weight: bold; min-width: 2rem; }
+        .q-body { flex: 1; }
+        .q-marks { font-weight: bold; white-space: nowrap; }
+        .options { margin: 0.4rem 0 0 1rem; list-style: none; padding: 0; }
+        .options li { margin: 0.2rem 0; }
+        @@media print { .no-print { display: none; } body { margin: 0; } }
+    </style>
+</head>
+<body>
+    <div class="no-print">
+        <button onclick="window.print()" style="padding:0.4rem 1rem;cursor:pointer;">🖨 Print</button>
+        <a href="javascript:history.back()" style="margin-left:0.75rem;">← Back</a>
+    </div>
+
+    <div class="header">
+        <h1>@(currentVersion?.Title ?? "Untitled Paper")</h1>
+    </div>
+
+    <div class="meta">
+        <span>Total Marks: <strong>@(currentVersion?.TotalMarks ?? 0)</strong></span>
+        <span>Duration: <strong>@(currentVersion?.DurationMinutes ?? 0) minutes</strong></span>
+        <span>Version: <strong>@(currentVersion?.VersionNumber ?? 1)</strong></span>
+    </div>
+    <p style="font-size:0.75rem;color:#999">Questions in version: @(currentVersion?.Questions.Count ?? 0) | Loaded bodies: @qVersions.Count</p>
+
+    @if (currentVersion != null)
+    {
+        var allQuestions = currentVersion.Questions.OrderBy(q => q.SortOrder).ToList();
+
+        @if (!allQuestions.Any())
+        {
+            <p style="color:#999;font-style:italic">No questions added to this paper yet.</p>
+        }
+        else
+        {
+            int n = 1;
+            foreach (var pq in allQuestions)
+            {
+                qVersions.TryGetValue(pq.QuestionId, out var qv);
+                <div class="question">
+                    <span class="q-num">Q@(n).</span>
+                    <div class="q-body">
+                        @if (qv != null)
+                        {
+                            @Html.Raw(qv.BodyHtml)
+                            @if (qv.Options.Any())
+                            {
+                                <ul class="options">
+                                    @foreach (var opt in qv.Options.OrderBy(o => o.SortOrder))
+                                    {
+                                        <li>(@opt.Label) @opt.Text</li>
+                                    }
+                                </ul>
+                            }
+                        }
+                        else
+                        {
+                            <em style="color:#999">Question content not found</em>
+                        }
+                    </div>
+                    <span class="q-marks">[@(pq.MarksOverride?.ToString("0.##") ?? qv?.Marks.ToString("0.##") ?? "—") marks]</span>
+                </div>
+                n++;
+            }
+        }
+    }
+</body>
+</html>

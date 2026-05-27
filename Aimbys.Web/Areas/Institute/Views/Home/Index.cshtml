@@ -1,0 +1,127 @@
+@using Aimbys.Web.Models.UI
+@using Aimbys.Web.ViewComponents
+@{
+    ViewData["Title"] = "Dashboard";
+
+    var teachers = new DataTableModel(
+        Caption: "Top contributors",
+        Columns: new[]
+        {
+            new DataTableColumn("Teacher"),
+            new DataTableColumn("Subject"),
+            new DataTableColumn("Papers", DataTableAlign.End),
+            new DataTableColumn("Rating", DataTableAlign.End)
+        },
+        Rows: new[]
+        {
+            Row("Mr. Rajiv Kumar",  "Mathematics",     "84", "4.8"),
+            Row("Mrs. Priya Nair",  "Physics",         "62", "4.6"),
+            Row("Dr. Sunita Roy",   "Chemistry",       "71", "4.9"),
+            Row("Mr. Arun Mehta",   "Computer Sci.",   "48", "4.5")
+        });
+
+    var alerts = new DataTableModel(
+        Caption: "Recent alerts",
+        Columns: new[]
+        {
+            new DataTableColumn("Severity"),
+            new DataTableColumn("Message"),
+            new DataTableColumn("When", DataTableAlign.End)
+        },
+        Rows: new[]
+        {
+            AlertRow("warning",  "Paper #P-2024-0841 awaiting approval since 48h",                    "2h ago"),
+            AlertRow("info",     "Exam Calendar updated: Mathematics XII on 22 May",                   "4h ago"),
+            AlertRow("critical", "Evaluation Engine degraded — results may be delayed",               "6h ago"),
+            AlertRow("success",  "Biology XI results published — 310 students",                       "1d ago")
+        });
+}
+
+@functions {
+    DataTableRow Row(params string[] cells) =>
+        new(cells.Select(c => new DataTableCell(c)).ToArray());
+
+    DataTableRow AlertRow(string severity, string message, string when) =>
+        new(new[]
+        {
+            new DataTableCell(Aimbys.Web.Models.UI.StatusBadge.Render(severity), IsHtml: true),
+            new DataTableCell(message),
+            new DataTableCell(when)
+        });
+}
+
+@*
+    Institute dashboard. Mirrors `InstituteDashboard.tsx`: 4 KPI tiles,
+    weekly activity area chart, alert feed, subject-performance bars,
+    top-contributors table. Real numbers replace the seed data when
+    the institute aggregate ships.
+*@
+
+<div class="container-fluid py-4 px-3 px-md-4">
+
+    <header class="mb-4">
+        <div class="text-secondary small text-uppercase" style="letter-spacing: 0.08em;">Institute Admin / Dashboard</div>
+        <h1 class="h3 fw-bold mt-1 mb-0">Institute Overview</h1>
+        <p class="text-secondary mb-0 mt-1">Welcome, @User.Identity?.Name</p>
+    </header>
+
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-xl-3">
+            @await Component.InvokeAsync("KpiCard", new { label = "Total Students",   value = "28,400", sub = "+840 this month",   trend = KpiTrend.Up, iconKey = "people",            accentHex = "#1d4ed8" })
+        </div>
+        <div class="col-6 col-xl-3">
+            @await Component.InvokeAsync("KpiCard", new { label = "Papers Generated", value = "6,820",  sub = "+124 this month",   trend = KpiTrend.Up, iconKey = "file-earmark-text", accentHex = "#0369a1" })
+        </div>
+        <div class="col-6 col-xl-3">
+            @await Component.InvokeAsync("KpiCard", new { label = "Question Bank",    value = "48,240", sub = "+1,820 this month", trend = KpiTrend.Up, iconKey = "book",              accentHex = "#7c3aed" })
+        </div>
+        <div class="col-6 col-xl-3">
+            @await Component.InvokeAsync("KpiCard", new { label = "Exams Scheduled",  value = "18",     sub = "4 this week",       trend = KpiTrend.Up, iconKey = "calendar",          accentHex = "#15803d" })
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-xl-8">
+            @await Component.InvokeAsync("ChartCard", new
+            {
+                title = "Weekly Activity",
+                subtitle = "Papers and exams across the past week",
+                dataUrl = Url.Action("WeeklyActivityData", "Home", new { area = "Institute" }),
+                chartType = "area",
+                height = 240
+            })
+        </div>
+        <div class="col-12 col-xl-4">
+            <article class="aimbys-chart-card h-100 bg-body border rounded-3 p-3 p-md-4">
+                <header class="mb-3">
+                    <h2 class="h6 fw-semibold mb-0">Recent Alerts</h2>
+                    <p class="text-secondary small mb-0 mt-1">Workflow + system events</p>
+                </header>
+                <partial name="_DataTable" model="alerts" />
+            </article>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-xl-7">
+            @await Component.InvokeAsync("ChartCard", new
+            {
+                title = "Subject Performance",
+                subtitle = "Average score and pass rate per subject",
+                dataUrl = Url.Action("SubjectPerformanceData", "Home", new { area = "Institute" }),
+                chartType = "bar",
+                height = 260
+            })
+        </div>
+        <div class="col-12 col-xl-5">
+            <article class="aimbys-chart-card h-100 bg-body border rounded-3 p-3 p-md-4">
+                <header class="mb-3">
+                    <h2 class="h6 fw-semibold mb-0">Top Contributors</h2>
+                    <p class="text-secondary small mb-0 mt-1">Teachers ranked by paper output</p>
+                </header>
+                <partial name="_DataTable" model="teachers" />
+            </article>
+        </div>
+    </div>
+
+</div>

@@ -1,0 +1,117 @@
+@using Aimbys.Domain.Entities
+@using Aimbys.Domain.Entities.Workflow
+@using Aimbys.Web.Models.UI
+@model Aimbys.Domain.Entities.Institute
+@{
+    ViewData["Title"] = $"Institute - {Model.Name}";
+    var transitions = (IReadOnlyList<WorkflowTransition>?)ViewBag.Transitions
+        ?? Array.Empty<WorkflowTransition>();
+}
+
+<div class="container-fluid py-4 px-3 px-md-4" style="max-width: 900px;">
+
+    <header class="mb-4">
+        <div class="text-secondary small text-uppercase" style="letter-spacing: 0.08em;">SuperAdmin / Institutes</div>
+        <h1 class="h3 fw-bold mt-1 mb-0">@Model.Name</h1>
+        <span class="mt-1 d-inline-block">@Html.Raw(StatusBadge.Render(Model.Status.ToString()))</span>
+    </header>
+
+    <div class="card border rounded-3 p-4 mb-4">
+        <h5 class="fw-semibold mb-3">Institute Details</h5>
+        <div class="row g-3">
+            <div class="col-md-4">
+                <div class="text-secondary small">Code</div>
+                <div class="fw-medium">@Model.Code</div>
+            </div>
+            <div class="col-md-4">
+                <div class="text-secondary small">Type</div>
+                <div class="fw-medium">@Model.Type</div>
+            </div>
+            <div class="col-md-4">
+                <div class="text-secondary small">License Tier</div>
+                <div class="fw-medium">@Model.LicenseTier</div>
+            </div>
+            <div class="col-md-4">
+                <div class="text-secondary small">City</div>
+                <div class="fw-medium">@Model.City</div>
+            </div>
+            <div class="col-md-4">
+                <div class="text-secondary small">State</div>
+                <div class="fw-medium">@Model.State</div>
+            </div>
+            <div class="col-md-4">
+                <div class="text-secondary small">Country</div>
+                <div class="fw-medium">@Model.Country</div>
+            </div>
+            <div class="col-md-6">
+                <div class="text-secondary small">Contact Email</div>
+                <div class="fw-medium">@Model.ContactEmail</div>
+            </div>
+            <div class="col-md-6">
+                <div class="text-secondary small">Contact Phone</div>
+                <div class="fw-medium">@(Model.ContactPhone ?? "—")</div>
+            </div>
+            <div class="col-md-4">
+                <div class="text-secondary small">Subscription Status</div>
+                <div class="fw-medium">@Model.SubscriptionStatus</div>
+            </div>
+            <div class="col-md-4">
+                <div class="text-secondary small">Subscription Expires</div>
+                <div class="fw-medium">@(Model.SubscriptionExpiresAtUtc?.ToString("yyyy-MM-dd") ?? "—")</div>
+            </div>
+            <div class="col-md-4">
+                <div class="text-secondary small">Created</div>
+                <div class="fw-medium">@Model.CreatedAtUtc.ToString("yyyy-MM-dd HH:mm")</div>
+            </div>
+            <div class="col-md-4">
+                <div class="text-secondary small">Approved By</div>
+                <div class="fw-medium">@(Model.ApprovedByUserId ?? "—")</div>
+            </div>
+            <div class="col-md-4">
+                <div class="text-secondary small">Approved At</div>
+                <div class="fw-medium">@(Model.ApprovedAtUtc?.ToString("yyyy-MM-dd HH:mm") ?? "—")</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card border rounded-3 p-4 mb-4">
+        <h5 class="fw-semibold mb-3">Workflow History</h5>
+        @if (transitions.Count == 0)
+        {
+            <p class="text-secondary">No transitions recorded.</p>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-sm table-hover align-middle">
+                    <thead>
+                        <tr>
+                            <th>From</th>
+                            <th>To</th>
+                            <th>Actor</th>
+                            <th>Comment</th>
+                            <th>Date</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var t in transitions)
+                        {
+                            <tr>
+                                <td>@t.FromState</td>
+                                <td>@t.ToState</td>
+                                <td class="text-truncate" style="max-width: 160px;">@t.ActorUserId</td>
+                                <td>@(t.Comment ?? "—")</td>
+                                <td>@t.TransitionedAtUtc.ToString("yyyy-MM-dd HH:mm")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+
+    <a asp-action="Index" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-arrow-left"></i> Back to list
+    </a>
+
+</div>

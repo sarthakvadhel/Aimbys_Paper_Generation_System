@@ -1,0 +1,45 @@
+@model IReadOnlyList<Aimbys.Application.Exams.ExamEventSummary>
+
+@{
+    ViewData["Title"] = "Event Timeline";
+}
+
+<div class="container mx-auto max-w-3xl py-8">
+    <h1 class="text-2xl font-bold mb-6">Exam Event Timeline</h1>
+
+    @if (Model.Count == 0)
+    {
+        <p class="text-gray-500">No events recorded for this attempt.</p>
+    }
+    else
+    {
+        <div class="relative border-l-2 border-gray-300 ml-4">
+            @foreach (var evt in Model)
+            {
+                var badgeColor = evt.EventType switch
+                {
+                    Aimbys.Domain.Enums.ExamEventType.TabBlur => "bg-yellow-500",
+                    Aimbys.Domain.Enums.ExamEventType.FullscreenExit => "bg-red-500",
+                    Aimbys.Domain.Enums.ExamEventType.SuspiciousActivity => "bg-red-700",
+                    Aimbys.Domain.Enums.ExamEventType.Heartbeat => "bg-green-400",
+                    Aimbys.Domain.Enums.ExamEventType.Started => "bg-blue-500",
+                    _ => "bg-gray-400"
+                };
+
+                <div class="mb-6 ml-6 relative">
+                    <span class="absolute -left-9 top-1 w-4 h-4 rounded-full @badgeColor border-2 border-white"></span>
+                    <div class="bg-white border rounded-lg p-4 shadow-sm">
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="font-semibold text-sm">@evt.EventType</span>
+                            <span class="text-xs text-gray-500">@evt.OccurredAtUtc.ToString("yyyy-MM-dd HH:mm:ss") UTC</span>
+                        </div>
+                        @if (!string.IsNullOrEmpty(evt.DetailsJson))
+                        {
+                            <p class="text-sm text-gray-600 mt-1">@evt.DetailsJson</p>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>

@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__filesystem__list_directory",
+      "mcp__filesystem__directory_tree",
+      "Bash(npx tsc *)",
+      "Bash(./node_modules/.bin/tsc --noEmit)",
+      "Bash(dotnet tool *)",
+      "Bash(AIMBYS_CONNECTION_STRING='Server=\\(localdb\\)\\\\mssqllocaldb;Database=AimbysDb;Trusted_Connection=True;MultipleActiveResultSets=true;TrustServerCertificate=True' dotnet ef database update --project Aimbys.Infrastructure --startup-project Aimbys.Infrastructure)",
+      "Bash(dotnet ef *)",
+      "Bash(dotnet --version)",
+      "Bash(dotnet restore *)",
+      "Bash(dotnet list *)",
+      "Bash(AIMBYS_CONNECTION_STRING='Server=\\(localdb\\)\\\\mssqllocaldb;Database=AimbysDb;Trusted_Connection=True;MultipleActiveResultSets=true;TrustServerCertificate=True' dotnet ef database update --project Aimbys.Infrastructure --startup-project Aimbys.Web --connection 'Server=\\(localdb\\)\\\\mssqllocaldb;Database=AimbysDb;Trusted_Connection=True;MultipleActiveResultSets=true;TrustServerCertificate=True')",
+      "mcp__filesystem__read_multiple_files",
+      "Bash(dotnet build *)"
+    ]
+  }
+}

@@ -1,0 +1,64 @@
+@using Aimbys.Web.ViewComponents
+@{
+    ViewData["Title"] = "My Analytics";
+}
+
+<div class="container-fluid py-4 px-3 px-md-4">
+
+    <header class="mb-4">
+        <div class="text-secondary small text-uppercase" style="letter-spacing: 0.08em;">Student / Analytics</div>
+        <h1 class="h3 fw-bold mt-1 mb-0">My Analytics</h1>
+    </header>
+
+    @* ---------- Charts ---------- *@
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-xl-6">
+            @await Component.InvokeAsync("ChartCard", new
+            {
+                title = "Subject Progress",
+                subtitle = "Current vs target performance",
+                dataUrl = Url.Action("ChartData", "Analytics", new { area = "Student", metricKey = "SubjectProgress" }),
+                chartType = "bar",
+                height = 280
+            })
+        </div>
+        <div class="col-12 col-xl-6">
+            @await Component.InvokeAsync("ChartCard", new
+            {
+                title = "Score Trend",
+                subtitle = "Test-over-test score improvement",
+                dataUrl = Url.Action("ChartData", "Analytics", new { area = "Student", metricKey = "ScoreTrend" }),
+                chartType = "line",
+                height = 280
+            })
+        </div>
+    </div>
+
+    @* ---------- Recent Results Summary ---------- *@
+    <article class="bg-body border rounded-3 p-3 p-md-4">
+        <header class="mb-3">
+            <h2 class="h6 fw-semibold mb-0">Recent Results</h2>
+            <p class="text-secondary small mb-0 mt-1">Your last 5 test scores</p>
+        </header>
+        <div class="table-responsive">
+            <table class="table table-sm table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Test</th>
+                        <th>Subject</th>
+                        <th class="text-end">Score</th>
+                        <th class="text-end">Percentile</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td>Unit Test 6</td><td>Computer Sci.</td><td class="text-end">92%</td><td class="text-end">96.2</td></tr>
+                    <tr><td>Unit Test 5</td><td>English</td><td class="text-end">87%</td><td class="text-end">89.4</td></tr>
+                    <tr><td>Mid-Term</td><td>Mathematics</td><td class="text-end">78%</td><td class="text-end">74.1</td></tr>
+                    <tr><td>Unit Test 4</td><td>Chemistry</td><td class="text-end">75%</td><td class="text-end">71.8</td></tr>
+                    <tr><td>Unit Test 3</td><td>Physics</td><td class="text-end">68%</td><td class="text-end">62.5</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </article>
+
+</div>

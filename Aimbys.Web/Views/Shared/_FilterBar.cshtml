@@ -1,0 +1,52 @@
+@using Aimbys.Web.Models.UI
+@model FilterBarModel
+
+@*
+    Search + select dropdowns rendered as a single GET form. The
+    consuming controller binds via query-string parameters; on submit
+    the browser performs a vanilla GET so the filtered URL is
+    bookmarkable / shareable.
+*@
+
+<form method="get" action="@(Model.Action ?? Url.Action(null, null))" class="row g-2 align-items-center mb-3">
+    <div class="col-12 col-md">
+        <div class="input-group input-group-sm">
+            <span class="input-group-text bg-body" aria-hidden="true">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14"
+                     fill="currentColor" viewBox="0 0 16 16">
+                    <path d="@Aimbys.Web.Navigation.RoleNavIcons.Get("search")" />
+                </svg>
+            </span>
+            <input class="form-control"
+                   type="search"
+                   name="@Model.SearchName"
+                   value="@Model.SearchValue"
+                   placeholder="@Model.SearchPlaceholder"
+                   aria-label="@Model.SearchPlaceholder" />
+        </div>
+    </div>
+
+    @if (Model.Filters is not null)
+    {
+        foreach (var select in Model.Filters)
+        {
+            <div class="col-6 col-md-auto">
+                <label class="visually-hidden" for="filter-@select.Name">@select.Label</label>
+                <select class="form-select form-select-sm" id="filter-@select.Name" name="@select.Name">
+                    <option value="">@select.Label</option>
+                    @foreach (var opt in select.Options)
+                    {
+                        var isSelected = string.Equals(opt.Value, select.SelectedValue, StringComparison.Ordinal);
+                        <option value="@opt.Value" selected="@(isSelected ? "selected" : null)">
+                            @opt.Label
+                        </option>
+                    }
+                </select>
+            </div>
+        }
+    }
+
+    <div class="col-auto">
+        <button type="submit" class="btn btn-sm btn-primary">Apply</button>
+    </div>
+</form>

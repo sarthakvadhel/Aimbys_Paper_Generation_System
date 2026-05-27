@@ -1,0 +1,48 @@
+@using Aimbys.Domain.Entities.Results
+@model IEnumerable<ResultAppeal>
+@{
+    ViewData["Title"] = "Appeals";
+}
+
+<div class="container-fluid py-4">
+    <h1 class="h3 mb-4">Student Appeals</h1>
+
+    <div class="card shadow-sm">
+        <div class="card-body">
+            @if (!Model.Any())
+            {
+                <p class="text-muted">No appeals filed yet.</p>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Filed</th>
+                                <th>Student</th>
+                                <th>Reason</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var appeal in Model)
+                            {
+                                <tr>
+                                    <td>@appeal.FiledAtUtc.ToString("g")</td>
+                                    <td>@appeal.StudentProfileId</td>
+                                    <td>@(appeal.Reason.Length > 80 ? appeal.Reason[..80] + "…" : appeal.Reason)</td>
+                                    <td><span class="badge bg-secondary">@appeal.Status</span></td>
+                                    <td>
+                                        <a asp-action="Review" asp-route-id="@appeal.Id" class="btn btn-sm btn-outline-primary">Review</a>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+</div>

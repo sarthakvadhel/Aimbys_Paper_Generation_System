@@ -1,0 +1,107 @@
+@model Aimbys.Domain.Entities.Papers.Paper
+@using Aimbys.Domain.Entities.Questions
+@{
+    ViewData["Title"] = "Edit Paper";
+    var currentVersion = Model.Versions.FirstOrDefault(v => v.Id == Model.CurrentVersionId);
+    var availableQuestions = ViewBag.AvailableQuestions as IEnumerable<Question> ?? Enumerable.Empty<Question>();
+    var selectedQuestionIds = currentVersion?.Questions.Select(q => q.QuestionId).ToHashSet() ?? new HashSet<Guid>();
+    var canEdit = Model.Status == Aimbys.Domain.Enums.PaperStatus.Draft || Model.Status == Aimbys.Domain.Enums.PaperStatus.Returned;
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0">@(currentVersion?.Title ?? "Untitled Paper")</h4>
+    <div class="d-flex gap-2">
+        @if (canEdit)
+        {
+            <form method="post" asp-action="Submit" asp-route-id="@Model.Id" class="d-inline">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="btn btn-success btn-sm">Submit for Approval</button>
+            </form>
+        }
+        <a asp-action="Preview" asp-route-id="@Model.Id" class="btn btn-outline-secondary btn-sm">Preview</a>
+        <a asp-action="Index" class="btn btn-outline-secondary btn-sm">Back</a>
+    </div>
+</div>
+
+@if (!canEdit)
+{
+    <div class="alert alert-warning">This paper is <strong>@Model.Status</strong> and cannot be edited.</div>
+}
+
+@if (canEdit)
+{
+    <form method="post" asp-action="Edit" asp-route-id="@Model.Id">
+        @Html.AntiForgeryToken()
+        <div class="row g-3 mb-4">
+            <div class="col-md-6">
+                <label class="form-label fw-semibold">Title</label>
+                <input type="text" name="title" class="form-control" value="@(currentVersion?.Title)" required maxlength="500" />
+            </div>
+            <div class="col-md-3">
+                <label class="form-label fw-semibold">Total Marks</label>
+                <input type="number" name="totalMarks" class="form-control" value="@(currentVersion?.TotalMarks)" min="1" required />
+            </div>
+            <div class="col-md-3">
+                <label class="form-label fw-semibold">Duration (minutes)</label>
+                <input type="number" name="durationMinutes" class="form-control" value="@(currentVersion?.DurationMinutes)" min="1" required />
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header fw-semibold">Select Questions from Bank</div>
+            <div class="card-body p-0">
+                @if (!availableQuestions.Any())
+                {
+                    <p class="text-muted p-3 mb-0">No approved questions available. Add and approve questions in the Question Bank first.</p>
+                }
+                else
+                {
+                    <table class="table table-sm table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width:40px"></th>
+                                <th>Question</th>
+                                <th>Type</th>
+                                <th>Difficulty</th>
+                                <th>Marks</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var q in availableQuestions)
+                            {
+                                var ver = q.Versions.FirstOrDefault();
+                                var preview = ver?.BodyHtml?.Length > 80
+                                    ? ver.BodyHtml[..80] + "…"
+                                    : ver?.BodyHtml ?? "(no content)";
+                                <tr>
+                                    <td>
+                                        <input type="checkbox" name="questionIds" value="@q.Id" class="form-check-input"
+                                               @(selectedQuestionIds.Contains(q.Id) ? "checked" : "") />
+                                    </td>
+                                    <td><span title="@ver?.BodyHtml">@Html.Raw(preview)</span></td>
+                                    <td><span class="badge bg-secondary">@q.Type</span></td>
+                                    <td>@ver?.Difficulty</td>
+                                    <td>@ver?.Marks</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+            </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Save Paper</button>
+    </form>
+}
+else
+{
+    <div class="card">
+        <div class="card-header">Questions (@(currentVersion?.Questions.Count ?? 0))</div>
+        <ul class="list-group list-group-flush">
+            @foreach (var q in currentVersion?.Questions.OrderBy(q => q.SortOrder) ?? Enumerable.Empty<Aimbys.Domain.Entities.Papers.PaperQuestion>())
+            {
+                <li class="list-group-item">Q@(q.SortOrder) — <code>@q.QuestionId.ToString()[..8]…</code></li>
+            }
+        </ul>
+    </div>
+}

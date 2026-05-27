@@ -1,0 +1,57 @@
+@model Aimbys.Web.ViewModels.Users.UserIndexViewModel
+@{
+    ViewData["Title"] = "Users & Roles";
+}
+
+<!-- KPI Strip -->
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="card text-center border-0 shadow-sm">
+            <div class="card-body">
+                <h3 class="mb-0">@Model.TeacherCount</h3>
+                <small class="text-muted">Teachers</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card text-center border-0 shadow-sm">
+            <div class="card-body">
+                <h3 class="mb-0">@Model.StudentCount</h3>
+                <small class="text-muted">Students</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card text-center border-0 shadow-sm">
+            <div class="card-body">
+                <h3 class="mb-0">@Model.TotalCount</h3>
+                <small class="text-muted">Total Users</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Action Buttons -->
+<div class="d-flex gap-2 mb-3">
+    <a asp-action="Invite" class="btn btn-primary btn-sm">Invite User</a>
+    <a asp-action="BulkImport" class="btn btn-outline-secondary btn-sm">Bulk Import Students</a>
+</div>
+
+@if (TempData["Success"] is string success)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        @success
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+@if (TempData["Error"] is string error)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        @error
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<partial name="_FilterBar" model="Model.FilterBar" />
+<partial name="_DataTable" model="Model.Table" />
+<partial name="_PaginationPartial" model="Model.Pagination" />

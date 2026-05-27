@@ -1,0 +1,52 @@
+@model Aimbys.Web.ViewModels.Account.RegisterViewModel
+@{
+    ViewData["Title"] = "Register";
+}
+
+<section class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-7 col-lg-6">
+            <div class="bg-body rounded shadow-sm border p-4 p-md-5">
+                <h1 class="h4 fw-bold mb-3">Create your account</h1>
+
+                <form asp-action="Register" method="post" novalidate>
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" asp-for="ReturnUrl" />
+
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger d-none-if-empty"></div>
+
+                    <div class="mb-3">
+                        <label asp-for="Email" class="form-label"></label>
+                        <input asp-for="Email" class="form-control" autocomplete="email" autofocus />
+                        <span asp-validation-for="Email" class="text-danger small"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Password" class="form-label"></label>
+                        <input asp-for="Password" class="form-control" autocomplete="new-password" />
+                        <span asp-validation-for="Password" class="text-danger small"></span>
+                        <div class="form-text">Minimum 8 characters; mix of upper, lower, and a digit.</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="ConfirmPassword" class="form-label"></label>
+                        <input asp-for="ConfirmPassword" class="form-control" autocomplete="new-password" />
+                        <span asp-validation-for="ConfirmPassword" class="text-danger small"></span>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100">Create account</button>
+                </form>
+
+                <hr class="my-4" />
+                <p class="small mb-0 text-secondary">
+                    Already registered?
+                    <a asp-action="Login" asp-route-returnUrl="@Model.ReturnUrl">Sign in</a>
+                </p>
+            </div>
+        </div>
+    </div>
+</section>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

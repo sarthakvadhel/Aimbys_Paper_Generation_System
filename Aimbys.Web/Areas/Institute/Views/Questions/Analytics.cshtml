@@ -1,0 +1,118 @@
+@using Aimbys.Application.Questions
+@using Aimbys.Domain.Entities.Questions
+@{
+    ViewData["Title"] = "Question Analytics";
+    var questionId = (Guid)ViewBag.QuestionId;
+    var summary = ViewBag.Summary as QuestionUsageSummary;
+    var risk = ViewBag.Risk as QuestionExposureRisk;
+    var exposureLogs = ViewBag.ExposureLogs as List<QuestionExposureLog> ?? new List<QuestionExposureLog>();
+}
+
+<h2>Question Analytics</h2>
+<p class="text-muted">Question ID: @questionId</p>
+
+<!-- KPI Cards -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        @await Component.InvokeAsync("KpiCard", new
+        {
+            label = "Papers Used In",
+            value = summary?.PapersUsedIn.ToString() ?? "—",
+            iconKey = "file-earmark-text",
+            accentHex = "#1d4ed8"
+        })
+    </div>
+    <div class="col-md-3">
+        @await Component.InvokeAsync("KpiCard", new
+        {
+            label = "Attempts",
+            value = summary?.AttemptsCount.ToString() ?? "—",
+            iconKey = "people",
+            accentHex = "#059669"
+        })
+    </div>
+    <div class="col-md-3">
+        @await Component.InvokeAsync("KpiCard", new
+        {
+            label = "P-Value",
+            value = summary is not null ? summary.PValue.ToString("F3") : "—",
+            sub = "Proportion correct",
+            iconKey = "graph-up",
+            accentHex = "#7c3aed"
+        })
+    </div>
+    <div class="col-md-3">
+        @await Component.InvokeAsync("KpiCard", new
+        {
+            label = "Exposure Risk",
+            value = risk?.RiskLevel ?? "—",
+            sub = $"{risk?.ExposureCount ?? 0} exposures (12 mo)",
+            iconKey = "shield-exclamation",
+            accentHex = risk?.RiskLevel == "High" ? "#dc2626" : risk?.RiskLevel == "Medium" ? "#d97706" : "#059669"
+        })
+    </div>
+</div>
+
+<!-- Charts -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        @await Component.InvokeAsync("ChartCard", new
+        {
+            title = "Usage Over Time",
+            dataUrl = Url.Action("UsageChartData", "Questions", new { area = "Institute", questionId }),
+            chartType = "bar",
+            subtitle = "Papers used per period"
+        })
+    </div>
+    <div class="col-md-6">
+        @await Component.InvokeAsync("ChartCard", new
+        {
+            title = "Difficulty Audit",
+            dataUrl = Url.Action("DifficultyAuditData", "Questions", new { area = "Institute", questionId }),
+            chartType = "line",
+            subtitle = "P-Value trend over time"
+        })
+    </div>
+</div>
+
+<!-- Exposure Log Table -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="card-title mb-0">Exposure Log</h5>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-striped mb-0">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Paper ID</th>
+                        <th>Institute ID</th>
+                        <th>Exposed At (UTC)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (exposureLogs.Count == 0)
+                    {
+                        <tr>
+                            <td colspan="4" class="text-center text-muted py-3">No exposure records found.</td>
+                        </tr>
+                    }
+                    else
+                    {
+                        var index = 1;
+                        @foreach (var log in exposureLogs)
+                        {
+                            <tr>
+                                <td>@(index++)</td>
+                                <td><code>@log.PaperId</code></td>
+                                <td><code>@log.InstituteId</code></td>
+                                <td>@log.ExposedAtUtc.ToString("yyyy-MM-dd HH:mm")</td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>

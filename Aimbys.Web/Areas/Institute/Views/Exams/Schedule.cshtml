@@ -1,0 +1,76 @@
+@using Aimbys.Domain.Entities.Papers
+@{
+    ViewData["Title"] = "Schedule Exam";
+    var classBatches = ViewBag.ClassBatches as List<Aimbys.Domain.Entities.ClassBatch> ?? new();
+    var papers = ViewBag.Papers as List<Paper> ?? new();
+}
+
+<div class="container py-4" style="max-width: 720px;">
+    <h4 class="mb-3">Schedule Exam</h4>
+
+    @if (!papers.Any())
+    {
+        <div class="alert alert-warning">
+            No approved papers found. Go to <a asp-area="Institute" asp-controller="Papers" asp-action="Index">Paper Approvals</a>
+            and approve a paper first.
+        </div>
+    }
+    else
+    {
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <form asp-action="Schedule" method="post">
+                    @Html.AntiForgeryToken()
+
+                    <div class="mb-3">
+                        <label class="form-label">Exam Title <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" name="title" required maxlength="500" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Paper <span class="text-danger">*</span></label>
+                        <select class="form-select" name="paperVersionId" required>
+                            <option value="">-- Select approved paper --</option>
+                            @foreach (var p in papers)
+                            {
+                                var ver = p.Versions.FirstOrDefault(v => v.Id == p.CurrentVersionId)
+                                       ?? p.Versions.FirstOrDefault();
+                                if (ver != null)
+                                {
+                                    <option value="@ver.Id">@ver.Title (@ver.TotalMarks marks, @ver.DurationMinutes min)</option>
+                                }
+                            }
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Class Batch <span class="text-danger">*</span></label>
+                        <select class="form-select" name="classBatchId" required>
+                            <option value="">-- Select --</option>
+                            @foreach (var cb in classBatches)
+                            {
+                                <option value="@cb.Id">@cb.Name</option>
+                            }
+                        </select>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Scheduled At <span class="text-danger">*</span></label>
+                            <input type="datetime-local" class="form-control" name="scheduledAtUtc" required />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Duration (minutes) <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control" name="durationMinutes" min="5" max="600" value="60" required />
+                        </div>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">Schedule Exam</button>
+                        <a asp-action="Calendar" class="btn btn-outline-secondary">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    }
+</div>

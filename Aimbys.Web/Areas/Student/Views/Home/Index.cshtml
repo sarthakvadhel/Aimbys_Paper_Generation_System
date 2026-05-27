@@ -1,0 +1,99 @@
+@using Aimbys.Web.Models.UI
+@using Aimbys.Web.ViewComponents
+@{
+    ViewData["Title"] = "Dashboard";
+
+    var recentScores = new DataTableModel(
+        Caption: "Recent results",
+        Columns: new[]
+        {
+            new DataTableColumn("Exam"),
+            new DataTableColumn("Date"),
+            new DataTableColumn("Score", DataTableAlign.End),
+            new DataTableColumn("Percent", DataTableAlign.End)
+        },
+        Rows: new[]
+        {
+            Row("Mathematics XII — Unit Test 3", "15 May", "62 / 80", "77.5%"),
+            Row("Physics XII — Chapter Test 4",  "10 May", "44 / 50", "88.0%"),
+            Row("English Core — Essay Test",     "05 May", "28 / 30", "93.3%"),
+            Row("Computer Sci. — Lab Test",      "01 May", "47 / 50", "94.0%")
+        });
+}
+
+@functions {
+    DataTableRow Row(params string[] cells) =>
+        new(cells.Select(c => new DataTableCell(c)).ToArray());
+}
+
+@*
+    Student dashboard. Mirrors `StudentDashboard.tsx`: 4 KPI tiles,
+    next-exam banner, recent-results table, subject-progress bar
+    chart. Real numbers replace the seed data when the result
+    aggregate ships.
+*@
+
+<div class="container-fluid py-4 px-3 px-md-4">
+
+    <header class="mb-4">
+        <div class="text-secondary small text-uppercase" style="letter-spacing: 0.08em;">Student / Dashboard</div>
+        <h1 class="h3 fw-bold mt-1 mb-1">Welcome back, @User.Identity?.Name</h1>
+        <p class="text-secondary mb-0">Class XII-A &middot; Roll No. 021 &middot; Delhi Public School HQ</p>
+    </header>
+
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-xl-3">
+            @await Component.InvokeAsync("KpiCard", new { label = "Exams Taken", value = "14",   iconKey = "book",              accentHex = "#15803d" })
+        </div>
+        <div class="col-6 col-xl-3">
+            @await Component.InvokeAsync("KpiCard", new { label = "Avg Score",   value = "79.5%", iconKey = "graph-up",         accentHex = "#0369a1" })
+        </div>
+        <div class="col-6 col-xl-3">
+            @await Component.InvokeAsync("KpiCard", new { label = "Class Rank",  value = "12th",  iconKey = "activity",         accentHex = "#7c3aed" })
+        </div>
+        <div class="col-6 col-xl-3">
+            @await Component.InvokeAsync("KpiCard", new { label = "Next Exam",   value = "22 May", iconKey = "calendar",        accentHex = "#d97706" })
+        </div>
+    </div>
+
+    @* Next-exam banner — copied from the React reference. *@
+    <div class="aimbys-student-banner d-flex flex-column flex-sm-row align-items-start align-items-sm-center gap-3 p-4 mb-4 rounded-3 border"
+         style="background: #0d1b2e; border-color: #1d4ed8; color: #fff;">
+        <div class="flex-grow-1">
+            <div class="text-success small fw-semibold text-uppercase" style="letter-spacing: 0.1em;">
+                Next Scheduled Exam
+            </div>
+            <div class="fw-bold fs-5 mt-1">Mathematics XII — Unit Test 4</div>
+            <div class="opacity-75 small mt-1">22 May 2026 · 10:00 AM · 3 hours · 80 marks</div>
+        </div>
+        <button class="btn btn-success px-4 fw-semibold flex-shrink-0" type="button" disabled
+                title="Exam attempt surface ships in a later chunk">
+            Start Exam Now &rarr;
+        </button>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-xl-7">
+            <article class="aimbys-chart-card h-100 bg-body border rounded-3 p-3 p-md-4">
+                <header class="mb-3 d-flex flex-wrap align-items-center justify-content-between gap-2">
+                    <div>
+                        <h2 class="h6 fw-semibold mb-0">Recent Results</h2>
+                        <p class="text-secondary small mb-0 mt-1">Latest published assessments</p>
+                    </div>
+                </header>
+                <partial name="_DataTable" model="recentScores" />
+            </article>
+        </div>
+        <div class="col-12 col-xl-5">
+            @await Component.InvokeAsync("ChartCard", new
+            {
+                title = "Subject Performance",
+                subtitle = "Running average by subject",
+                dataUrl = Url.Action("SubjectProgressData", "Home", new { area = "Student" }),
+                chartType = "bar",
+                height = 240
+            })
+        </div>
+    </div>
+
+</div>

@@ -1,0 +1,35 @@
+{
+  "key": "InstituteApproval",
+  "version": 1,
+  "description": "Lifecycle of an institute onboarding request, owned by SuperAdmin governance.",
+  "states": [
+    "PendingApproval",
+    "Active",
+    "Rejected",
+    "Suspended",
+    "Reactivated",
+    "Archived"
+  ],
+  "terminalStates": [
+    "Archived"
+  ],
+  "transitions": [
+    { "fromState": "PendingApproval", "toState": "Active",     "requiredRole": "SuperAdmin", "queueName": "InstituteApproval" },
+    { "fromState": "PendingApproval", "toState": "Rejected",   "requiredRole": "SuperAdmin", "queueName": null },
+    { "fromState": "Active",          "toState": "Suspended",  "requiredRole": "SuperAdmin", "queueName": null },
+    { "fromState": "Suspended",       "toState": "Reactivated","requiredRole": "SuperAdmin", "queueName": null },
+    { "fromState": "Reactivated",     "toState": "Active",     "requiredRole": "SuperAdmin", "queueName": null },
+    { "fromState": "Active",          "toState": "Archived",   "requiredRole": "SuperAdmin", "queueName": null },
+    { "fromState": "Suspended",       "toState": "Archived",   "requiredRole": "SuperAdmin", "queueName": null },
+    { "fromState": "Rejected",        "toState": "Archived",   "requiredRole": "SuperAdmin", "queueName": null }
+  ],
+  "escalationRules": [
+    {
+      "state": "PendingApproval",
+      "maxDurationMinutes": 4320,
+      "reminderAtPercent": 75,
+      "escalateToRole": "SuperAdmin",
+      "escalateToPermission": null
+    }
+  ]
+}

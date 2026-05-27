@@ -1,0 +1,28 @@
+# .NET build output
+bin/
+obj/
+*.user
+*.suo
+.vs/
+
+# .NET tool / NuGet
+*.nupkg
+.nuget/
+project.lock.json
+
+# Node / Vite (existing React reference)
+node_modules/
+/dist/
+.vite/
+*.log
+
+# Local file-storage uploads (Chunk 9). Holds runtime artefacts; never
+# commit. The directory tree itself is recreated on startup by
+# `FileFolders.EnsureCreated` so deleting it locally is safe.
+Aimbys.Web/uploads/
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

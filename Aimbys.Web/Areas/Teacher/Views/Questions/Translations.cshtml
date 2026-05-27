@@ -1,0 +1,49 @@
+@{
+    ViewData["Title"] = "Question Translations";
+    var questionId = (Guid)ViewBag.QuestionId;
+    var languages = (IEnumerable<Aimbys.Domain.Entities.Multilingual.Language>)ViewBag.Languages;
+}
+
+<h4>Question Translations</h4>
+<p class="text-muted">Manage translations for this question across configured languages.</p>
+
+@if (!languages.Any())
+{
+    <div class="alert alert-info">No active languages are configured for your institute.</div>
+}
+else
+{
+    <div class="accordion" id="translationAccordion">
+    @foreach (var lang in languages)
+    {
+        <div class="accordion-item">
+            <h2 class="accordion-header">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#lang-@lang.Id.ToString("N")">
+                    @lang.Name (@lang.Code)
+                </button>
+            </h2>
+            <div id="lang-@lang.Id.ToString("N")" class="accordion-collapse collapse" data-bs-parent="#translationAccordion">
+                <div class="accordion-body">
+                    <form method="post" asp-action="SaveTranslation">
+                        <input type="hidden" name="questionId" value="@questionId" />
+                        <input type="hidden" name="languageId" value="@lang.Id" />
+                        <div class="mb-3">
+                            <label class="form-label">Body HTML</label>
+                            <textarea name="bodyHtml" class="form-control" rows="5"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Instructions HTML (optional)</label>
+                            <textarea name="instructionsHtml" class="form-control" rows="3"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Options JSON (optional)</label>
+                            <textarea name="optionsJson" class="form-control" rows="3"></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Save Translation</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    }
+    </div>
+}

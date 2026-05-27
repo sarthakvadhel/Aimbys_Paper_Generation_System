@@ -1,0 +1,19 @@
+@model Aimbys.Web.ViewComponents.BrandingViewModel
+
+@if (!string.IsNullOrEmpty(Model.PrimaryColorHex))
+{
+    <style>
+        :root { --aimbys-role-accent: @Model.PrimaryColorHex !important; }
+    </style>
+}
+
+<div class="aimbys-brand-block text-center py-3">
+    @if (!string.IsNullOrEmpty(Model.LogoUrl))
+    {
+        <img src="@Model.LogoUrl" alt="@Model.InstituteName" class="img-fluid mb-2" style="max-height:48px;" />
+    }
+    else
+    {
+        <div class="fw-bold" style="color: var(--aimbys-role-accent);">@Model.InstituteName</div>
+    }
+</div>

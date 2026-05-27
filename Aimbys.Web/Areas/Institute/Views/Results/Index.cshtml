@@ -1,0 +1,24 @@
+@{
+    ViewData["Title"] = "Results Publication";
+}
+
+<div class="container-fluid py-4">
+    <h1 class="h3 mb-4">Results Publication</h1>
+
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <p class="text-muted">Select an exam and publish its results. V1 placeholder — real exam list integration arrives with the exam pipeline chunks.</p>
+
+            <form asp-action="Publish" method="post" class="d-inline">
+                @Html.AntiForgeryToken()
+                <div class="mb-3">
+                    <label for="examId" class="form-label">Exam ID</label>
+                    <input type="text" class="form-control" id="examId" name="examId" placeholder="Enter Exam GUID" required />
+                </div>
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-check2-circle me-1"></i> Publish Results
+                </button>
+            </form>
+        </div>
+    </div>
+</div>

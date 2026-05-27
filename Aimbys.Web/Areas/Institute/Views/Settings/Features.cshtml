@@ -1,0 +1,68 @@
+@model Aimbys.Web.Areas.Institute.ViewModels.FeatureSettingsViewModel
+@{
+    ViewData["Title"] = "Feature Settings";
+    var success = TempData["Success"] as string;
+}
+
+<div class="container-fluid py-4 px-3 px-md-4" style="max-width: 720px;">
+
+    <header class="mb-4">
+        <div class="text-secondary small text-uppercase" style="letter-spacing: 0.08em;">Institute / Workflow</div>
+        <h1 class="h3 fw-bold mt-1 mb-0">Feature Settings</h1>
+        <p class="text-secondary mt-1 mb-0">
+            Current tier: <span class="badge text-bg-info">@Model.CurrentTier</span>
+        </p>
+    </header>
+
+    @if (!string.IsNullOrEmpty(success))
+    {
+        <div class="alert alert-success" role="status">@success</div>
+    }
+
+    <article class="bg-body border rounded-3 p-4">
+        <form asp-action="Features" method="post">
+            @Html.AntiForgeryToken()
+
+            @foreach (var toggle in Model.Toggles)
+            {
+                <div class="d-flex align-items-center justify-content-between py-3 border-bottom">
+                    <div>
+                        <div class="fw-semibold">@toggle.DisplayName</div>
+                        <div class="text-secondary small">
+                            @if (!toggle.IsTierAllowed)
+                            {
+                                <span class="text-warning">
+                                    <i class="bi bi-lock"></i>
+                                    Requires @toggle.MinimumTier tier or above
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="text-success">
+                                    <i class="bi bi-check-circle"></i>
+                                    Available on your plan
+                                </span>
+                            }
+                        </div>
+                    </div>
+                    <div class="form-check form-switch">
+                        <input type="hidden" name="toggles[@toggle.Key]" value="false" />
+                        <input class="form-check-input"
+                               type="checkbox"
+                               name="toggles[@toggle.Key]"
+                               value="true"
+                               @(toggle.IsEnabled ? "checked" : "")
+                               @(!toggle.IsTierAllowed ? "disabled" : "")
+                               role="switch"
+                               id="toggle-@toggle.Key" />
+                    </div>
+                </div>
+            }
+
+            <div class="mt-4">
+                <button type="submit" class="btn btn-primary">Save Settings</button>
+            </div>
+        </form>
+    </article>
+
+</div>

@@ -1,0 +1,83 @@
+@using Aimbys.Web.ViewComponents
+@{
+    ViewData["Title"] = "Analytics";
+}
+
+<div class="container-fluid py-4 px-3 px-md-4">
+
+    <header class="mb-4">
+        <div class="text-secondary small text-uppercase" style="letter-spacing: 0.08em;">Institute / Analytics</div>
+        <h1 class="h3 fw-bold mt-1 mb-0">Institute Analytics</h1>
+    </header>
+
+    @* ---------- KPI tiles ---------- *@
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-xl-3">
+            @await Component.InvokeAsync("KpiCard", new { label = "Students", value = "4,820", sub = "+120 this month", trend = KpiTrend.Up, iconKey = "people", accentHex = "#1d4ed8" })
+        </div>
+        <div class="col-6 col-xl-3">
+            @await Component.InvokeAsync("KpiCard", new { label = "Teachers", value = "186", sub = "+3 this month", trend = KpiTrend.Up, iconKey = "people", accentHex = "#0369a1" })
+        </div>
+        <div class="col-6 col-xl-3">
+            @await Component.InvokeAsync("KpiCard", new { label = "Papers Created", value = "1,240", sub = "+48 this week", trend = KpiTrend.Up, iconKey = "file-earmark-text", accentHex = "#7c3aed" })
+        </div>
+        <div class="col-6 col-xl-3">
+            @await Component.InvokeAsync("KpiCard", new { label = "Exams Conducted", value = "320", sub = "+12 this week", trend = KpiTrend.Up, iconKey = "activity", accentHex = "#15803d" })
+        </div>
+    </div>
+
+    @* ---------- Charts ---------- *@
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-xl-6">
+            @await Component.InvokeAsync("ChartCard", new
+            {
+                title = "Weekly Activity",
+                subtitle = "Papers and exams by day of week",
+                dataUrl = Url.Action("ChartData", "Analytics", new { area = "Institute", metricKey = "WeeklyActivity" }),
+                chartType = "line",
+                height = 260
+            })
+        </div>
+        <div class="col-12 col-xl-6">
+            @await Component.InvokeAsync("ChartCard", new
+            {
+                title = "Class Performance",
+                subtitle = "Average score and pass rate by class",
+                dataUrl = Url.Action("ChartData", "Analytics", new { area = "Institute", metricKey = "ClassPerformance" }),
+                chartType = "bar",
+                height = 260
+            })
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-xl-6">
+            @await Component.InvokeAsync("ChartCard", new
+            {
+                title = "Subject Trend",
+                subtitle = "Monthly average scores by subject",
+                dataUrl = Url.Action("ChartData", "Analytics", new { area = "Institute", metricKey = "SubjectTrend" }),
+                chartType = "line",
+                height = 260
+            })
+        </div>
+        <div class="col-12 col-xl-6">
+            @await Component.InvokeAsync("ChartCard", new
+            {
+                title = "Evaluator Efficiency",
+                subtitle = "Papers evaluated per day",
+                dataUrl = Url.Action("ChartData", "Analytics", new { area = "Institute", metricKey = "EvaluatorEfficiency" }),
+                chartType = "bar",
+                height = 260
+            })
+        </div>
+    </div>
+
+    @* ---------- Export ---------- *@
+    <div class="text-end">
+        <a href="@Url.Action("Export", "Analytics", new { area = "Institute", format = "csv" })" class="btn btn-outline-primary btn-sm">
+            <i class="bi bi-download me-1"></i> Export CSV
+        </a>
+    </div>
+
+</div>

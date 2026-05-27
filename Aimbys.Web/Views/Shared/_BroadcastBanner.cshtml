@@ -1,0 +1,44 @@
+@using Aimbys.Application.Broadcasts
+@using Aimbys.Domain.Entities.Broadcasts
+@inject IBroadcastService Broadcasts
+
+@*
+    Broadcast banner partial (Chunk 35). Shown inside _RoleLayout above
+    the rendered body. Pulls the current role area from ViewData and
+    asks IBroadcastService for active broadcasts targeting that
+    audience. Wrapped in try/catch so a startup-time DB outage never
+    breaks the layout — the banner is non-critical chrome.
+
+    The body is rendered with @Html.Raw because the service sanitises
+    BodyHtml at save time (script tags + event handlers stripped).
+*@
+
+@{
+    var area = ViewData["RoleArea"] as string ?? string.Empty;
+    IReadOnlyList<Broadcast> active = Array.Empty<Broadcast>();
+    try
+    {
+        active = await Broadcasts.GetActiveAsync(area);
+    }
+    catch
+    {
+        // Banner is non-critical: never break the page if the broadcast
+        // service or its backing DB is unavailable.
+    }
+}
+
+@if (active.Count > 0)
+{
+    <div class="aimbys-broadcasts">
+        @foreach (var b in active)
+        {
+            <div class="alert alert-info alert-dismissible fade show m-2"
+                 role="alert"
+                 data-broadcast-id="@b.Id">
+                <strong>@b.Subject</strong>
+                <div>@Html.Raw(b.BodyHtml)</div>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Dismiss"></button>
+            </div>
+        }
+    </div>
+}

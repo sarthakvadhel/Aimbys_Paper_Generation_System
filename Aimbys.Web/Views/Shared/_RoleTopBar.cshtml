@@ -1,0 +1,73 @@
+@{
+    var area = ViewData["RoleArea"] as string ?? string.Empty;
+    var label = ViewData["RoleLabel"] as string ?? Aimbys.Web.Navigation.RoleNavCatalog.GetRoleLabel(area);
+    var iconSearch = Aimbys.Web.Navigation.RoleNavIcons.Get("search");
+    var iconList   = Aimbys.Web.Navigation.RoleNavIcons.Get("list");
+    var iconSun    = Aimbys.Web.Navigation.RoleNavIcons.Get("sun");
+    var iconMoon   = Aimbys.Web.Navigation.RoleNavIcons.Get("moon");
+}
+
+@*
+    Topbar shared across all four role layouts. Lays out (from left to right):
+      - Hamburger that opens the offcanvas sidebar drawer (d-lg-none)
+      - A search input (purely cosmetic in this chunk; backend lands later)
+      - Dark-mode toggle. The button is a no-op without JS; the JS
+        listener just flips data-bs-theme on <html> and persists to a
+        cookie. A real preferences-aware toggle ships with the
+        configuration UI in a later chunk.
+      - Notifications bell badge via NotificationsViewComponent
+      - Role badge so the active workspace is unambiguous
+*@
+
+<header class="aimbys-role-topbar d-flex align-items-center gap-2 gap-md-3 px-3 py-2 border-bottom bg-body sticky-top">
+
+    <button class="btn btn-outline-secondary btn-sm d-lg-none aimbys-role-topbar__menu"
+            type="button"
+            data-bs-toggle="offcanvas"
+            data-bs-target="#aimbys-role-drawer"
+            aria-controls="aimbys-role-drawer"
+            aria-label="Open navigation">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor"
+             viewBox="0 0 16 16" aria-hidden="true">
+            <path d="@iconList" />
+        </svg>
+    </button>
+
+    <div class="aimbys-role-topbar__search input-group input-group-sm flex-grow-1" role="search">
+        <span class="input-group-text bg-body border-end-0">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor"
+                 viewBox="0 0 16 16" aria-hidden="true">
+                <path d="@iconSearch" />
+            </svg>
+        </span>
+        <input class="form-control border-start-0"
+               type="search"
+               placeholder="Search…"
+               aria-label="Search the @label workspace" />
+    </div>
+
+    <button class="btn btn-outline-secondary btn-sm aimbys-role-topbar__darkmode"
+            type="button"
+            id="aimbys-darkmode-toggle"
+            aria-pressed="false"
+            aria-label="Toggle dark mode">
+        <svg class="aimbys-role-topbar__darkmode-sun" xmlns="http://www.w3.org/2000/svg"
+             width="16" height="16" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+            <path d="@iconSun" />
+        </svg>
+        <svg class="aimbys-role-topbar__darkmode-moon" xmlns="http://www.w3.org/2000/svg"
+             width="16" height="16" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+            <path d="@iconMoon" />
+        </svg>
+    </button>
+
+    <span class="d-none d-md-inline">
+        @await Component.InvokeAsync("Notifications")
+    </span>
+
+    <span class="d-none d-md-inline-flex align-items-center gap-2">
+        <span class="aimbys-role-topbar__rolebadge badge rounded-pill" data-aimbys-role="@area">
+            @label
+        </span>
+    </span>
+</header>

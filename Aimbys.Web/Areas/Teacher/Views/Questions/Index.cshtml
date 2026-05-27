@@ -1,0 +1,55 @@
+@model Aimbys.Web.ViewModels.Questions.QuestionIndexViewModel
+@{
+    ViewData["Title"] = "Question Bank";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4 class="mb-0">My Questions</h4>
+    <a asp-action="Create" class="btn btn-primary">
+        <i class="bi bi-plus-circle me-1"></i>New Question
+    </a>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-body">
+        @if (!Model.Questions.Any())
+        {
+            <p class="text-muted text-center py-4">No questions authored yet. Click "New Question" to get started.</p>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead>
+                        <tr>
+                            <th>Type</th>
+                            <th>Subject</th>
+                            <th>Difficulty</th>
+                            <th>Marks</th>
+                            <th>Status</th>
+                            <th>Created</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var q in Model.Questions)
+                        {
+                            <tr>
+                                <td><span class="badge bg-secondary">@q.Type</span></td>
+                                <td>@q.SubjectName</td>
+                                <td>@q.Difficulty</td>
+                                <td>@q.Marks</td>
+                                <td><span class="badge bg-info">@q.Status</span></td>
+                                <td>@q.CreatedAtUtc.ToString("dd MMM yyyy")</td>
+                                <td>
+                                    <a asp-action="Edit" asp-route-id="@q.Id" class="btn btn-sm btn-outline-primary">Edit</a>
+                                    <a asp-action="RevisionHistory" asp-route-id="@q.Id" class="btn btn-sm btn-outline-secondary">History</a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>

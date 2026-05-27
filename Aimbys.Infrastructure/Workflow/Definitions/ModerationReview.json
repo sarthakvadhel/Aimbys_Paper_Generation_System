@@ -1,0 +1,39 @@
+{
+  "key": "ModerationReview",
+  "version": 1,
+  "description": "Moderator's lifecycle for a submitted evaluation. PendingModeration -> InModeration -> Approved | RequiresChanges | Overridden.",
+  "states": [
+    "PendingModeration",
+    "InModeration",
+    "Approved",
+    "RequiresChanges",
+    "Overridden"
+  ],
+  "terminalStates": [
+    "Approved",
+    "RequiresChanges",
+    "Overridden"
+  ],
+  "transitions": [
+    { "fromState": "PendingModeration", "toState": "InModeration",     "requiredRole": "Teacher", "requiredPermission": "CanModerate", "queueName": "ModerationInbox" },
+    { "fromState": "InModeration",      "toState": "Approved",          "requiredRole": "Teacher", "requiredPermission": "CanModerate", "queueName": null },
+    { "fromState": "InModeration",      "toState": "RequiresChanges",   "requiredRole": "Teacher", "requiredPermission": "CanModerate", "queueName": null },
+    { "fromState": "InModeration",      "toState": "Overridden",        "requiredRole": "InstituteAdmin", "queueName": null }
+  ],
+  "escalationRules": [
+    {
+      "state": "PendingModeration",
+      "maxDurationMinutes": 2880,
+      "reminderAtPercent": 75,
+      "escalateToRole": "InstituteAdmin",
+      "escalateToPermission": null
+    },
+    {
+      "state": "InModeration",
+      "maxDurationMinutes": 2880,
+      "reminderAtPercent": 75,
+      "escalateToRole": "InstituteAdmin",
+      "escalateToPermission": null
+    }
+  ]
+}

@@ -1,0 +1,175 @@
+@model Aimbys.Domain.Entities.Exams.ExamAttempt
+@using Aimbys.Domain.Entities.Questions
+@{
+    ViewData["Title"] = Model.Exam?.Title ?? "Exam";
+    Layout = "~/Views/Shared/_LayoutExam.cshtml";
+    var remainingSeconds = (int)(ViewBag.RemainingSeconds ?? 0);
+    var qVersions = ViewBag.QuestionVersions as Dictionary<Guid, QuestionVersion>
+                    ?? new Dictionary<Guid, QuestionVersion>();
+    var answers = Model.Answers.OrderBy(a => a.QuestionId).ToList();
+}
+
+<div class="container-fluid py-3">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="mb-0">@Model.Exam?.Title</h5>
+        <div class="d-flex align-items-center gap-3">
+            <span class="badge bg-danger fs-6" id="timer" aria-live="polite">--:--</span>
+            <form asp-action="Submit" method="post" class="d-inline" id="submitForm">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="attemptId" value="@Model.Id" />
+                <button type="submit" class="btn btn-primary btn-sm"
+                        onclick="return confirm('Submit exam? You cannot change answers after submission.')">
+                    Submit Exam
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <p class="text-muted small mb-3">
+        Duration: @(Model.Exam?.DurationMinutes ?? 0) min &nbsp;|&nbsp;
+        Questions: @answers.Count &nbsp;|&nbsp;
+        Flagged: <span id="flagCount">@answers.Count(a => a.IsFlagged)</span>
+    </p>
+
+    @if (!answers.Any())
+    {
+        <div class="alert alert-warning">No questions found for this exam.</div>
+    }
+    else
+    {
+        <div class="d-flex flex-column gap-3">
+            @for (int i = 0; i < answers.Count; i++)
+            {
+                var answer = answers[i];
+                qVersions.TryGetValue(answer.QuestionId, out var qv);
+                var qNum = i + 1;
+                var isMcq = qv?.Options.Any() == true;
+
+                <div class="card shadow-sm" id="q-@answer.QuestionId">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <span class="fw-semibold">Q@(qNum)
+                                @if (qv != null)
+                                {
+                                    <span class="text-muted fw-normal small ms-1">[@(qv.Marks) marks]</span>
+                                }
+                            </span>
+                            <button type="button"
+                                    class="btn btn-sm @(answer.IsFlagged ? "btn-warning" : "btn-outline-warning") flag-btn"
+                                    data-attempt-id="@Model.Id"
+                                    data-question-id="@answer.QuestionId"
+                                    data-flagged="@answer.IsFlagged.ToString().ToLower()">
+                                @(answer.IsFlagged ? "⚑ Flagged" : "⚐ Flag")
+                            </button>
+                        </div>
+
+                        @if (qv != null)
+                        {
+                            <div class="mb-3">@Html.Raw(qv.BodyHtml)</div>
+
+                            @if (isMcq)
+                            {
+                                <div class="d-flex flex-column gap-2">
+                                    @foreach (var opt in qv.Options.OrderBy(o => o.SortOrder))
+                                    {
+                                        var inputId = $"q{answer.QuestionId}_{opt.Label}";
+                                        var isSelected = answer.AnswerJson == opt.Label;
+                                        <div class="form-check">
+                                            <input class="form-check-input mcq-option"
+                                                   type="radio"
+                                                   name="mcq_@answer.QuestionId"
+                                                   id="@inputId"
+                                                   value="@opt.Label"
+                                                   data-attempt-id="@Model.Id"
+                                                   data-question-id="@answer.QuestionId"
+                                                   @(isSelected ? "checked" : "") />
+                                            <label class="form-check-label" for="@inputId">
+                                                <strong>@opt.Label.</strong> @opt.Text
+                                            </label>
+                                        </div>
+                                    }
+                                </div>
+                            }
+                            else
+                            {
+                                <textarea class="form-control answer-input"
+                                          data-attempt-id="@Model.Id"
+                                          data-question-id="@answer.QuestionId"
+                                          rows="4"
+                                          placeholder="Type your answer here...">@answer.AnswerJson</textarea>
+                            }
+                        }
+                        else
+                        {
+                            <p class="text-muted fst-italic">Question content unavailable.</p>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@section Scripts {
+<script>
+(function () {
+    // Timer
+    let remaining = @remainingSeconds;
+    const timerEl = document.getElementById('timer');
+    function tick() {
+        if (remaining <= 0) {
+            timerEl.textContent = '00:00';
+            document.getElementById('submitForm').submit();
+            return;
+        }
+        const m = Math.floor(remaining / 60), s = remaining % 60;
+        timerEl.textContent = String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+        remaining--;
+        setTimeout(tick, 1000);
+    }
+    tick();
+
+    // Save answer helper
+    function saveAnswer(attemptId, questionId, answerJson) {
+        fetch('@Url.Action("SaveAnswer","Exams",new{area="Student"})', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ attemptId, questionId, answerJson })
+        }).then(r => {
+            if (r.status === 409) {
+                alert('Time expired! Submitting now.');
+                document.getElementById('submitForm').submit();
+            }
+        });
+    }
+
+    // Descriptive autosave
+    document.querySelectorAll('.answer-input').forEach(el => {
+        let t;
+        el.addEventListener('input', () => { clearTimeout(t); t = setTimeout(() => saveAnswer(el.dataset.attemptId, el.dataset.questionId, el.value), 2000); });
+        el.addEventListener('blur',  () => { clearTimeout(t); saveAnswer(el.dataset.attemptId, el.dataset.questionId, el.value); });
+    });
+
+    // MCQ save on click
+    document.querySelectorAll('.mcq-option').forEach(el => {
+        el.addEventListener('change', () => saveAnswer(el.dataset.attemptId, el.dataset.questionId, el.value));
+    });
+
+    // Flag toggle
+    document.querySelectorAll('.flag-btn').forEach(btn => {
+        btn.addEventListener('click', function () {
+            const flagged = this.dataset.flagged === 'true';
+            fetch('@Url.Action("Flag","Exams",new{area="Student"})', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ attemptId: this.dataset.attemptId, questionId: this.dataset.questionId, flagged: !flagged })
+            }).then(() => {
+                this.dataset.flagged = (!flagged).toString();
+                this.textContent = !flagged ? '⚑ Flagged' : '⚐ Flag';
+                this.className = 'btn btn-sm ' + (!flagged ? 'btn-warning' : 'btn-outline-warning') + ' flag-btn';
+            });
+        });
+    });
+})();
+</script>
+}

@@ -1,0 +1,572 @@
+/* AIMBYS design tokens — re-tint Bootstrap variables to the brand palette
+   from the React reference (`src/app/components/aimbys/LandingPage.tsx`).
+   Keep additions minimal: the goal is to lean on Bootstrap utilities, not
+   reinvent them. */
+:root {
+    --aimbys-navy: #0d1b2e;
+    --aimbys-navy-soft: #1e2d44;
+    --aimbys-blue: #1d4ed8;
+    --aimbys-blue-soft: #60a5fa;
+
+    --bs-primary: var(--aimbys-blue);
+    --bs-primary-rgb: 29, 78, 216;
+    --bs-link-color: var(--aimbys-blue);
+    --bs-link-color-rgb: 29, 78, 216;
+    --bs-link-hover-color: #1e40af;
+    --bs-link-hover-color-rgb: 30, 64, 175;
+}
+
+html {
+    scroll-behavior: smooth;
+}
+
+body {
+    font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, Arial, sans-serif;
+}
+
+/* --- Header / nav ---------------------------------------------------- */
+
+.aimbys-header {
+    background: var(--aimbys-navy);
+}
+
+.aimbys-header .navbar-brand,
+.aimbys-header .nav-link {
+    color: #fff;
+}
+
+.aimbys-header .nav-link:hover,
+.aimbys-header .nav-link:focus {
+    color: var(--aimbys-blue-soft);
+}
+
+.aimbys-header .nav-link.active {
+    color: var(--aimbys-blue-soft);
+    font-weight: 600;
+}
+
+.aimbys-brand-tagline {
+    font-size: 0.65rem;
+    letter-spacing: 0.12em;
+}
+
+.aimbys-logo-mark {
+    width: 2rem;
+    height: 2rem;
+    background: var(--aimbys-blue);
+    color: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.25rem;
+    font-weight: 800;
+    font-size: 0.95rem;
+}
+
+.aimbys-pulse-dot {
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 50%;
+    background: #16a34a;
+    display: inline-block;
+    box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.55);
+    animation: aimbys-pulse 2s infinite;
+}
+
+@keyframes aimbys-pulse {
+    0%   { box-shadow: 0 0 0 0   rgba(22, 163, 74, 0.55); }
+    70%  { box-shadow: 0 0 0 8px rgba(22, 163, 74, 0);    }
+    100% { box-shadow: 0 0 0 0   rgba(22, 163, 74, 0);    }
+}
+
+/* --- Hero ------------------------------------------------------------ */
+
+.aimbys-hero {
+    background: linear-gradient(135deg, #0d1b2e 0%, #1e3a8a 60%, #1d4ed8 100%);
+    color: #fff;
+    border-radius: 0.75rem;
+    overflow: hidden;
+}
+
+.aimbys-hero h1 {
+    line-height: 1.15;
+}
+
+.aimbys-hero .lead {
+    color: rgba(255, 255, 255, 0.85);
+}
+
+.aimbys-hero .btn-outline-light {
+    --bs-btn-hover-color: var(--aimbys-navy);
+}
+
+/* --- Cards / surfaces ------------------------------------------------ */
+
+.aimbys-feature-card {
+    border: 1px solid var(--bs-border-color);
+    border-radius: 0.5rem;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.aimbys-feature-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0.5rem 1rem rgba(13, 27, 46, 0.08);
+}
+
+/* --- Footer ---------------------------------------------------------- */
+
+.aimbys-footer {
+    background: var(--bs-body-bg);
+    border-top: 1px solid var(--bs-border-color);
+}
+
+.aimbys-badge-dot {
+    width: 0.45rem;
+    height: 0.45rem;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+/* --- Focus ring tied to brand primary -------------------------------- */
+
+.btn:focus,
+.btn:active:focus,
+.form-control:focus,
+.form-check-input:focus,
+.btn-link.nav-link:focus {
+    box-shadow: 0 0 0 0.2rem rgba(var(--bs-primary-rgb), 0.25);
+}
+
+/* --- Reduced motion -------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    .aimbys-pulse-dot { animation: none; }
+    .aimbys-feature-card { transition: none; }
+    .aimbys-feature-card:hover { transform: none; }
+}
+
+
+/* ============================================================ *
+ *  PARAKH role-pick landing (Chunk 14)
+ *
+ *  Re-creates the React `LandingPage.tsx` split layout with
+ *  Bootstrap utilities + a small CSS surface. Two panels: a dark
+ *  hero on the left (lg+) and a light credentials form on the
+ *  right; on screens below `lg` the hero is hidden and the form
+ *  rides solo with a compact mobile brand strip on top.
+ * ============================================================ */
+
+.aimbys-landing {
+    display: flex;
+    flex: 1;
+    min-height: 100vh;
+    background: #f0f4f8;
+}
+
+.aimbys-landing__hero {
+    width: 52%;
+    background: #0d1b2e;
+    color: #fff;
+    position: relative;
+    overflow: hidden;
+}
+
+.aimbys-landing__hero-tag {
+    border: 1px solid rgba(96, 165, 250, 0.4);
+    color: #60a5fa;
+    background: rgba(29, 78, 216, 0.12);
+    font-size: 0.7rem;
+}
+
+.aimbys-landing__hero-title {
+    font-size: clamp(1.75rem, 2.8vw, 2.4rem);
+    font-weight: 900;
+}
+
+.aimbys-landing__hero-accent {
+    color: #60a5fa;
+}
+
+.aimbys-landing__stat {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.aimbys-landing__check {
+    font-weight: 700;
+    line-height: 1.4;
+}
+
+.aimbys-landing__form {
+    flex: 1;
+}
+
+.aimbys-landing__mobile-brand {
+    background: #0d1b2e;
+}
+
+.aimbys-landing__password .btn {
+    /* Compact eye-toggle that aligns with the password input height. */
+    border-color: var(--bs-border-color);
+    color: var(--bs-secondary-color);
+}
+
+/* ---- Role tiles --------------------------------------------- */
+
+.aimbys-role-tile {
+    cursor: pointer;
+    border-color: var(--bs-border-color);
+    transition: border-color 0.15s ease, background-color 0.15s ease, transform 0.15s ease;
+}
+
+.aimbys-role-tile:hover {
+    border-color: #94a3b8;
+}
+
+.aimbys-role-tile--active {
+    border-color: var(--bs-primary);
+    background: rgba(29, 78, 216, 0.06);
+}
+
+.aimbys-role-tile--active .aimbys-role-tile__label {
+    color: var(--bs-primary);
+}
+
+.aimbys-role-tile__icon {
+    width: 2rem;
+    height: 2rem;
+    border-radius: 0.25rem;
+    background: #e2e8f0;
+    color: #475569;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+}
+
+.aimbys-role-tile--active .aimbys-role-tile__icon {
+    background: var(--bs-primary);
+    color: #fff;
+}
+
+.aimbys-role-tile__chevron {
+    opacity: 0;
+    transform: translateX(-0.25rem);
+    transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.aimbys-role-tile--active .aimbys-role-tile__chevron {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+/* ---- Accent overrides driven by the active tile.
+ *
+ *  The React reference renders each tile in a different colour; we
+ *  expose those four palettes via `data-aimbys-accent` so the form
+ *  CTA picks up the same accent without per-role markup. */
+
+html[data-aimbys-accent="violet"] {
+    --bs-primary: #7c3aed;
+    --bs-primary-rgb: 124, 58, 237;
+    --bs-link-color: #7c3aed;
+}
+
+html[data-aimbys-accent="blue"] {
+    --bs-primary: #1d4ed8;
+    --bs-primary-rgb: 29, 78, 216;
+    --bs-link-color: #1d4ed8;
+}
+
+html[data-aimbys-accent="sky"] {
+    --bs-primary: #0369a1;
+    --bs-primary-rgb: 3, 105, 161;
+    --bs-link-color: #0369a1;
+}
+
+html[data-aimbys-accent="green"] {
+    --bs-primary: #15803d;
+    --bs-primary-rgb: 21, 128, 61;
+    --bs-link-color: #15803d;
+}
+
+/* ---- Responsive collapse ----------------------------------- */
+
+@media (max-width: 991.98px) {
+    .aimbys-landing {
+        flex-direction: column;
+    }
+
+    .aimbys-landing__hero {
+        width: 100%;
+    }
+}
+
+
+
+/* ============================================================ *
+ *  Role-area shell (Chunk 15)
+ *
+ *  Mirrors the React `*Shell.tsx` components: pinned 256-px sidebar
+ *  on lg+, full-bleed main column with sticky topbar, offcanvas
+ *  drawer + bottom-tab bar below lg. Each area scopes its accent via
+ *  the `--aimbys-role-accent` CSS variable set inside the layout's
+ *  inline <style> block.
+ * ============================================================ */
+
+.aimbys-role-shell__layout {
+    display: flex;
+    min-height: 100vh;
+    background: var(--bs-body-bg);
+}
+
+.aimbys-role-shell__sidebar {
+    width: 16rem; /* 256px */
+    min-height: 100vh;
+    background: #0d1b2e;
+    color: #cbd5e1;
+    border-right: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.aimbys-role-shell__drawer .aimbys-role-sidebar {
+    width: 100%;
+}
+
+/* The drawer offcanvas re-uses the same dark sidebar treatment. */
+.aimbys-role-shell__drawer.offcanvas {
+    background: #0d1b2e;
+    color: #cbd5e1;
+}
+
+.aimbys-role-shell__drawer .offcanvas-header {
+    color: #fff;
+    border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+.aimbys-role-shell__drawer .btn-close {
+    filter: invert(1) grayscale(1) brightness(2);
+}
+
+.aimbys-role-shell__main {
+    background: var(--bs-body-bg);
+}
+
+/* ---- Sidebar -------------------------------------------------- */
+
+.aimbys-role-sidebar {
+    width: 100%;
+}
+
+.aimbys-role-sidebar__brand {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.aimbys-role-sidebar__logo {
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 0.4rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.aimbys-role-sidebar__nav {
+    /* Keep the list compact on tall screens; let it scroll on short ones. */
+    scrollbar-width: thin;
+}
+
+.aimbys-role-nav__section-title {
+    color: rgba(203, 213, 225, 0.55);
+    letter-spacing: 0.1em;
+}
+
+.aimbys-role-nav__link {
+    color: #cbd5e1;
+    text-decoration: none;
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.aimbys-role-nav__link:hover {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.aimbys-role-nav__link--active {
+    color: #fff;
+    background: rgba(var(--aimbys-role-accent-rgb, 29, 78, 216), 0.18);
+    box-shadow: inset 3px 0 0 var(--aimbys-role-accent);
+    font-weight: 600;
+}
+
+.aimbys-role-nav__link--disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.aimbys-role-nav__link--disabled:hover {
+    background: transparent;
+    color: #cbd5e1;
+}
+
+.aimbys-role-nav__icon {
+    flex-shrink: 0;
+}
+
+/* ---- User card pinned at the bottom of the sidebar ----------- */
+
+.aimbys-role-usermenu {
+    border-color: rgba(255, 255, 255, 0.08) !important;
+    color: #cbd5e1;
+}
+
+.aimbys-role-usermenu .text-body { color: #fff !important; }
+
+.aimbys-role-usermenu__avatar {
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.08);
+    color: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.85rem;
+}
+
+.aimbys-role-usermenu .badge {
+    font-size: 0.65rem;
+    letter-spacing: 0.06em;
+    background: rgba(255, 255, 255, 0.08) !important;
+    color: #cbd5e1 !important;
+}
+
+/* ---- Topbar -------------------------------------------------- */
+
+.aimbys-role-topbar {
+    z-index: 1020;
+    min-height: 3.25rem;
+}
+
+/* The dark-mode button shows the sun in light mode and the moon in dark
+ * mode by toggling visibility based on the document's data-bs-theme. */
+[data-bs-theme="light"] .aimbys-role-topbar__darkmode-moon { display: none; }
+[data-bs-theme="dark"]  .aimbys-role-topbar__darkmode-sun  { display: none; }
+
+.aimbys-role-topbar__rolebadge {
+    background: var(--aimbys-role-accent);
+    color: #fff;
+    text-transform: uppercase;
+    font-size: 0.7rem;
+    letter-spacing: 0.06em;
+    padding: 0.35rem 0.7rem;
+}
+
+/* ---- Bottom-tab bar (mobile) -------------------------------- */
+
+.aimbys-role-bottomnav {
+    position: sticky;
+    bottom: 0;
+    z-index: 1010;
+}
+
+.aimbys-role-bottombar__link {
+    color: var(--bs-secondary-color);
+    text-decoration: none;
+}
+
+.aimbys-role-bottombar__link--active {
+    color: var(--aimbys-role-accent);
+    font-weight: 600;
+}
+
+.aimbys-role-bottombar__link--disabled {
+    opacity: 0.45;
+    pointer-events: none;
+}
+
+/* ---- Per-role accent overrides for the topbar role badge ----- *
+ * Used when JS layout-toggles haven't yet set a CSS variable on
+ * <html>; the data-aimbys-role attribute is always present so the
+ * badge's background is correct from first paint.            */
+
+html[data-aimbys-role="SuperAdmin"] { --aimbys-role-accent: #7c3aed; --aimbys-role-accent-rgb: 124, 58, 237; }
+html[data-aimbys-role="Institute"]  { --aimbys-role-accent: #1d4ed8; --aimbys-role-accent-rgb: 29, 78, 216;  }
+html[data-aimbys-role="Teacher"]    { --aimbys-role-accent: #0369a1; --aimbys-role-accent-rgb: 3, 105, 161;  }
+html[data-aimbys-role="Student"]    { --aimbys-role-accent: #15803d; --aimbys-role-accent-rgb: 21, 128, 61;  }
+
+
+
+/* ============================================================ *
+ *  Dashboard view components (Chunk 16)
+ *
+ *  Three reusable surfaces mirror the React dashboard cards:
+ *  KpiCard (icon + value + label + optional trend), ChartCard
+ *  (header + canvas), and the Bootstrap-table-based DataTable.
+ *  All three lean on Bootstrap utilities for layout; only a small
+ *  CSS surface lives here.
+ * ============================================================ */
+
+.aimbys-kpi-card {
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.aimbys-kpi-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0.5rem 1rem rgba(13, 27, 46, 0.06);
+}
+
+.aimbys-kpi-card__icon {
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 0.4rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    /* The accent comes in via a per-card --aimbys-kpi-accent CSS
+       variable so a single rule paints every tile correctly. */
+    background: color-mix(in srgb, var(--aimbys-kpi-accent, #1d4ed8) 12%, transparent);
+    color: var(--aimbys-kpi-accent, #1d4ed8);
+}
+
+.aimbys-chart-card {
+    transition: box-shadow 0.15s ease;
+}
+
+.aimbys-chart-card:hover {
+    box-shadow: 0 0.5rem 1rem rgba(13, 27, 46, 0.04);
+}
+
+/* The canvas grows with its container; min-height keeps tiny
+   datasets from collapsing into a 0-pixel strip while the chart
+   library still has a chance to compute its layout. */
+.aimbys-chart-card__canvas canvas {
+    max-width: 100%;
+}
+
+/* DataTable: use Bootstrap's table styling but tighten the
+   header treatment so it reads like the React dashboard panels. */
+.aimbys-data-table thead th {
+    color: var(--bs-secondary-color);
+    border-bottom-width: 1px;
+}
+
+.aimbys-data-table tbody tr:last-child td {
+    border-bottom: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .aimbys-kpi-card,
+    .aimbys-chart-card { transition: none; }
+    .aimbys-kpi-card:hover,
+    .aimbys-chart-card:hover {
+        transform: none;
+        box-shadow: none;
+    }
+}
+
+
+/* Heatmap (Chunk 31) */
+.aimbys-heatmap { font-size: 0.75rem; }
+.aimbys-heatmap__header { font-size: 0.7rem; color: var(--bs-secondary-color); }
+.aimbys-heatmap__label { display: flex; align-items: center; }

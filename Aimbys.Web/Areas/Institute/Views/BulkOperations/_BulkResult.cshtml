@@ -1,0 +1,41 @@
+@model Aimbys.Web.Areas.Institute.ViewModels.BulkResultViewModel
+
+@if (Model.HasResult)
+{
+    <div class="alert @(Model.Failed == 0 ? "alert-success" : "alert-warning") mt-3" role="status">
+        <strong>@Model.Succeeded of @Model.Total rows succeeded.</strong>
+        @if (Model.Failed > 0)
+        {
+            <span>@Model.Failed rows had errors.</span>
+        }
+    </div>
+
+    @if (Model.Errors.Count > 0)
+    {
+        <article class="bg-body border rounded-3 p-0 mt-3">
+            <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th scope="col">Row</th>
+                            <th scope="col">Field</th>
+                            <th scope="col">Error</th>
+                            <th scope="col">Code</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var err in Model.Errors)
+                        {
+                            <tr>
+                                <td>@err.RowNumber</td>
+                                <td><code>@(err.Field ?? "—")</code></td>
+                                <td>@err.Message</td>
+                                <td><code class="text-secondary">@err.ErrorCode</code></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </article>
+    }
+}

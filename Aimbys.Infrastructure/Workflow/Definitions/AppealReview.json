@@ -1,0 +1,40 @@
+{
+  "key": "AppealReview",
+  "version": 1,
+  "description": "Student-appeal lifecycle. Open -> UnderReview -> UpheldOriginal | Adjusted | Closed.",
+  "states": [
+    "Open",
+    "UnderReview",
+    "UpheldOriginal",
+    "Adjusted",
+    "Closed"
+  ],
+  "terminalStates": [
+    "UpheldOriginal",
+    "Adjusted",
+    "Closed"
+  ],
+  "transitions": [
+    { "fromState": "Open",        "toState": "UnderReview",    "requiredRole": "InstituteAdmin", "queueName": "AppealReview" },
+    { "fromState": "UnderReview", "toState": "UpheldOriginal", "requiredRole": "InstituteAdmin", "queueName": null },
+    { "fromState": "UnderReview", "toState": "Adjusted",       "requiredRole": "InstituteAdmin", "queueName": null },
+    { "fromState": "UnderReview", "toState": "Closed",         "requiredRole": "InstituteAdmin", "queueName": null },
+    { "fromState": "Open",        "toState": "Closed",         "requiredRole": "InstituteAdmin", "queueName": null }
+  ],
+  "escalationRules": [
+    {
+      "state": "Open",
+      "maxDurationMinutes": 2880,
+      "reminderAtPercent": 75,
+      "escalateToRole": "InstituteAdmin",
+      "escalateToPermission": null
+    },
+    {
+      "state": "UnderReview",
+      "maxDurationMinutes": 4320,
+      "reminderAtPercent": 75,
+      "escalateToRole": "InstituteAdmin",
+      "escalateToPermission": null
+    }
+  ]
+}

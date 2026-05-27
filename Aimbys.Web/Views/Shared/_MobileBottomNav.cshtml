@@ -1,0 +1,13 @@
+@{
+    var area = ViewData["RoleArea"] as string ?? string.Empty;
+}
+
+@*
+    Bottom-tab variant rendered only below lg. Re-uses the same data
+    catalogue as the sidebar, picking the first link of each section
+    so the bar stays compact within thumb reach.
+*@
+
+<div class="aimbys-role-bottomnav d-lg-none border-top bg-body">
+    @await Component.InvokeAsync("RoleNav", new { area, variant = "bottom" })
+</div>

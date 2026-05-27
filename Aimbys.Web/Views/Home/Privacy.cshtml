@@ -1,0 +1,31 @@
+@{
+    ViewData["Title"] = "Privacy Policy";
+}
+
+<section class="container">
+    <div class="row justify-content-center">
+        <div class="col-lg-9 col-xl-8">
+            <nav aria-label="breadcrumb" class="small mb-2">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item">
+                        <a class="text-decoration-none" asp-controller="Home" asp-action="Index">Home</a>
+                    </li>
+                    <li class="breadcrumb-item active" aria-current="page">Privacy</li>
+                </ol>
+            </nav>
+
+            <article class="bg-body rounded shadow-sm border p-4 p-md-5">
+                <h1 class="h3 fw-bold mb-3">@ViewData["Title"]</h1>
+                <p class="text-secondary">
+                    This page is a placeholder. The production privacy policy will be
+                    published here, alongside data-retention, audit, and access-request
+                    procedures.
+                </p>
+                <p class="mb-0">
+                    For platform compliance details (ISO 27001, CERT-In, 256-bit TLS),
+                    see the footer of every page.
+                </p>
+            </article>
+        </div>
+    </div>
+</section>

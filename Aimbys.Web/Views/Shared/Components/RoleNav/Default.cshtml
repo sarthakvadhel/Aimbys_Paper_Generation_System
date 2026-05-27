@@ -1,0 +1,62 @@
+@using Aimbys.Web.Navigation
+@model Aimbys.Web.ViewComponents.RoleNavViewModel
+
+@*
+    Sidebar variant. Rendered inside _RoleSidebar.cshtml. Links flagged
+    with IsImplemented=false render as disabled rows so reviewers can
+    see the planned roadmap without dead URLs 404-ing.
+
+    Note: avoid binding the loop variable to `section` — Razor reserves
+    that token for the @section directive and will reject it as a
+    parser error.
+*@
+
+<nav class="aimbys-role-nav d-flex flex-column gap-3" aria-label="Role navigation">
+    @foreach (var navGroup in Model.Sections)
+    {
+        <div class="aimbys-role-nav__section">
+            <div class="aimbys-role-nav__section-title text-uppercase small fw-semibold text-secondary px-3 mb-2">
+                @navGroup.Title
+            </div>
+            <ul class="list-unstyled m-0 px-2 d-flex flex-column gap-1">
+                @foreach (var link in navGroup.Links)
+                {
+                    var isActive = Model.IsActive(link);
+                    var iconPath = RoleNavIcons.Get(link.IconKey);
+                    var classes = "aimbys-role-nav__link d-flex align-items-center gap-2 px-2 py-2 rounded";
+                    if (isActive)        { classes += " aimbys-role-nav__link--active"; }
+                    if (!link.IsImplemented) { classes += " aimbys-role-nav__link--disabled"; }
+
+                    <li>
+                        @if (link.IsImplemented)
+                        {
+                            <a class="@classes"
+                               aria-current="@(isActive ? "page" : null)"
+                               asp-area="@link.Area"
+                               asp-controller="@link.Controller"
+                               asp-action="@link.Action">
+                                <svg class="aimbys-role-nav__icon" xmlns="http://www.w3.org/2000/svg"
+                                     width="16" height="16" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+                                    <path d="@iconPath" />
+                                </svg>
+                                <span>@link.Label</span>
+                            </a>
+                        }
+                        else
+                        {
+                            <span class="@classes"
+                                  title="Ships in a later chunk"
+                                  aria-disabled="true">
+                                <svg class="aimbys-role-nav__icon" xmlns="http://www.w3.org/2000/svg"
+                                     width="16" height="16" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+                                    <path d="@iconPath" />
+                                </svg>
+                                <span>@link.Label</span>
+                            </span>
+                        }
+                    </li>
+                }
+            </ul>
+        </div>
+    }
+</nav>

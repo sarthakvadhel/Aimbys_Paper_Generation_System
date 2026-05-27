@@ -1,0 +1,63 @@
+@using Aimbys.Domain.Entities.Results
+@model ResultAppeal
+@{
+    ViewData["Title"] = "Review Appeal";
+}
+
+<div class="container-fluid py-4">
+    <h1 class="h3 mb-4">Review Appeal</h1>
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <dl class="row">
+                <dt class="col-sm-3">Appeal ID</dt>
+                <dd class="col-sm-9">@Model.Id</dd>
+                <dt class="col-sm-3">Filed At</dt>
+                <dd class="col-sm-9">@Model.FiledAtUtc.ToString("g")</dd>
+                <dt class="col-sm-3">Reason</dt>
+                <dd class="col-sm-9">@Model.Reason</dd>
+                <dt class="col-sm-3">Status</dt>
+                <dd class="col-sm-9"><span class="badge bg-secondary">@Model.Status</span></dd>
+            </dl>
+        </div>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">Uphold Original Score</div>
+                <div class="card-body">
+                    <form asp-action="Uphold" method="post">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="id" value="@Model.Id" />
+                        <div class="mb-3">
+                            <label class="form-label">Comment (optional)</label>
+                            <textarea name="comment" class="form-control" rows="2"></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-warning">Uphold Original</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">Adjust Score</div>
+                <div class="card-body">
+                    <form asp-action="Adjust" method="post">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="id" value="@Model.Id" />
+                        <div class="mb-3">
+                            <label class="form-label">New Score</label>
+                            <input type="number" step="0.01" name="newScore" class="form-control" required />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Reason</label>
+                            <textarea name="reason" class="form-control" rows="2" required></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-success">Adjust Score</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,81 @@
+@model Aimbys.Web.Areas.SuperAdmin.ViewModels.SubscriptionEditViewModel
+@{
+    ViewData["Title"] = $"Edit Subscription — {Model.InstituteName}";
+}
+
+<div class="container-fluid py-4 px-3 px-md-4" style="max-width: 720px;">
+
+    <header class="mb-4">
+        <div class="text-secondary small text-uppercase" style="letter-spacing: 0.08em;">SuperAdmin / Management</div>
+        <h1 class="h3 fw-bold mt-1 mb-0">Edit Subscription</h1>
+        <p class="text-secondary mt-1 mb-0">@Model.InstituteName</p>
+    </header>
+
+    <article class="bg-body border rounded-3 p-4">
+        <form asp-action="Edit" asp-route-id="@Model.InstituteId" method="post">
+            @Html.AntiForgeryToken()
+
+            <div class="mb-3">
+                <label class="form-label fw-semibold">Current Status</label>
+                <div>
+                    @{
+                        var statusBadgeClass = Model.Status switch
+                        {
+                            Aimbys.Domain.Enums.InstituteSubscriptionStatus.Active => "text-bg-success",
+                            Aimbys.Domain.Enums.InstituteSubscriptionStatus.Trial => "text-bg-info",
+                            Aimbys.Domain.Enums.InstituteSubscriptionStatus.Suspended => "text-bg-danger",
+                            Aimbys.Domain.Enums.InstituteSubscriptionStatus.Expired => "text-bg-dark",
+                            Aimbys.Domain.Enums.InstituteSubscriptionStatus.GracePeriod => "text-bg-warning",
+                            _ => "text-bg-secondary"
+                        };
+                    }
+                    <span class="badge @statusBadgeClass fs-6">@Model.Status</span>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="Tier" class="form-label fw-semibold">License Tier</label>
+                <select asp-for="Tier" asp-items="Html.GetEnumSelectList<Aimbys.Domain.Enums.LicenseTier>()" class="form-select"></select>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="ExpiresAtUtc" class="form-label fw-semibold">Subscription Expires (UTC)</label>
+                <input asp-for="ExpiresAtUtc" type="date" class="form-control"
+                       value="@(Model.ExpiresAtUtc?.ToString("yyyy-MM-dd"))" />
+                <div class="form-text">Leave blank to keep unchanged. Grace period: @Model.GracePeriodDays days after expiry.</div>
+            </div>
+
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary">Save Changes</button>
+                <a asp-action="Index" class="btn btn-outline-secondary">Cancel</a>
+            </div>
+        </form>
+    </article>
+
+    <article class="bg-body border rounded-3 p-4 mt-4">
+        <h5 class="fw-semibold mb-3">Quick Actions</h5>
+        <div class="d-flex gap-2 flex-wrap">
+            @if (Model.Status != Aimbys.Domain.Enums.InstituteSubscriptionStatus.Suspended)
+            {
+                <form asp-action="Suspend" asp-route-id="@Model.InstituteId" method="post">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="reason" value="Administrative action" />
+                    <button type="submit" class="btn btn-danger"
+                            onclick="return confirm('Suspend this institute\u0027s subscription?');">
+                        Suspend Subscription
+                    </button>
+                </form>
+            }
+            @if (Model.Status != Aimbys.Domain.Enums.InstituteSubscriptionStatus.Active)
+            {
+                <form asp-action="Activate" asp-route-id="@Model.InstituteId" method="post">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-success">
+                        Activate Subscription
+                    </button>
+                </form>
+            }
+        </div>
+    </article>
+
+</div>

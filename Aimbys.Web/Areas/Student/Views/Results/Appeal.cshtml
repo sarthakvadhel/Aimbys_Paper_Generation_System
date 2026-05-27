@@ -1,0 +1,29 @@
+@{
+    ViewData["Title"] = "File Appeal";
+    var attemptAnswerId = ViewBag.AttemptAnswerId as Guid?;
+}
+
+<div class="container-fluid py-4">
+    <h1 class="h3 mb-4">File an Appeal</h1>
+
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <form asp-action="Appeal" method="post">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="attemptAnswerId" value="@attemptAnswerId" />
+
+                <div class="mb-3">
+                    <label class="form-label">Reason for Appeal</label>
+                    <textarea name="reason" class="form-control" rows="5" maxlength="2000" required
+                              placeholder="Describe why you believe the awarded score is incorrect…"></textarea>
+                    <div class="form-text">Maximum 2000 characters.</div>
+                </div>
+
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-send me-1"></i> Submit Appeal
+                </button>
+                <a asp-action="Index" class="btn btn-outline-secondary ms-2">Cancel</a>
+            </form>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,68 @@
+@using Aimbys.Web.Models.UI
+@model DataTableModel
+
+@*
+    Reusable data-table partial. Wraps the table in `.table-responsive`
+    so it scrolls horizontally on narrow viewports rather than
+    overflowing the row's column. Cells with IsHtml=true are
+    Html.Raw'd; everything else is HTML-encoded for safety.
+*@
+
+<div class="table-responsive">
+    <table class="table align-middle mb-0 aimbys-data-table">
+        <caption class="visually-hidden">@Model.Caption</caption>
+        <thead class="table-light">
+            <tr>
+                @foreach (var col in Model.Columns)
+                {
+                    var alignClass = col.Align switch
+                    {
+                        DataTableAlign.Center => "text-center",
+                        DataTableAlign.End    => "text-end",
+                        _                      => string.Empty
+                    };
+                    <th scope="col" class="small text-uppercase fw-semibold @alignClass">@col.Title</th>
+                }
+            </tr>
+        </thead>
+        <tbody>
+            @if (Model.Rows.Count == 0)
+            {
+                <tr>
+                    <td colspan="@Model.Columns.Count" class="text-secondary text-center py-4">
+                        @Model.EmptyMessage
+                    </td>
+                </tr>
+            }
+            else
+            {
+                @foreach (var row in Model.Rows)
+                {
+                    <tr>
+                        @for (int i = 0; i < row.Cells.Count; i++)
+                        {
+                            var col = i < Model.Columns.Count ? Model.Columns[i] : null;
+                            var alignClass = col?.Align switch
+                            {
+                                DataTableAlign.Center => "text-center",
+                                DataTableAlign.End    => "text-end",
+                                _                      => string.Empty
+                            };
+
+                            <td class="@alignClass">
+                                @if (row.Cells[i].IsHtml)
+                                {
+                                    @Html.Raw(row.Cells[i].Text)
+                                }
+                                else
+                                {
+                                    @row.Cells[i].Text
+                                }
+                            </td>
+                        }
+                    </tr>
+                }
+            }
+        </tbody>
+    </table>
+</div>

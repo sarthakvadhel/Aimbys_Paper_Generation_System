@@ -1,0 +1,98 @@
+@model Aimbys.Web.ViewModels.Institutes.InstituteCreateViewModel
+@{
+    ViewData["Title"] = "Create Institute";
+}
+
+<div class="container-fluid py-4 px-3 px-md-4" style="max-width: 720px;">
+
+    <header class="mb-4">
+        <div class="text-secondary small text-uppercase" style="letter-spacing: 0.08em;">SuperAdmin / Institutes</div>
+        <h1 class="h3 fw-bold mt-1 mb-0">Create Institute</h1>
+    </header>
+
+    <div asp-validation-summary="All" class="text-danger mb-3"></div>
+
+    <form asp-action="Create" method="post" class="card border rounded-3 p-4">
+
+        <div class="row g-3">
+            <div class="col-md-8">
+                <label asp-for="Name" class="form-label"></label>
+                <input asp-for="Name" class="form-control" />
+                <span asp-validation-for="Name" class="text-danger small"></span>
+            </div>
+            <div class="col-md-4">
+                <label asp-for="Code" class="form-label"></label>
+                <input asp-for="Code" class="form-control" placeholder="e.g. DPS-RKP" />
+                <span asp-validation-for="Code" class="text-danger small"></span>
+            </div>
+        </div>
+
+        <div class="row g-3 mt-1">
+            <div class="col-md-6">
+                <label asp-for="Type" class="form-label"></label>
+                <select asp-for="Type" asp-items="Html.GetEnumSelectList<Aimbys.Domain.Enums.InstituteType>()" class="form-select"></select>
+                <span asp-validation-for="Type" class="text-danger small"></span>
+            </div>
+            <div class="col-md-6">
+                <label asp-for="LicenseTier" class="form-label"></label>
+                <select asp-for="LicenseTier" asp-items="Html.GetEnumSelectList<Aimbys.Domain.Enums.LicenseTier>()" class="form-select"></select>
+                <span asp-validation-for="LicenseTier" class="text-danger small"></span>
+            </div>
+        </div>
+
+        <div class="row g-3 mt-1">
+            <div class="col-md-4">
+                <label asp-for="City" class="form-label"></label>
+                <input asp-for="City" class="form-control" />
+                <span asp-validation-for="City" class="text-danger small"></span>
+            </div>
+            <div class="col-md-4">
+                <label asp-for="State" class="form-label"></label>
+                <input asp-for="State" class="form-control" />
+                <span asp-validation-for="State" class="text-danger small"></span>
+            </div>
+            <div class="col-md-4">
+                <label asp-for="Country" class="form-label"></label>
+                <input asp-for="Country" class="form-control" />
+                <span asp-validation-for="Country" class="text-danger small"></span>
+            </div>
+        </div>
+
+        <div class="row g-3 mt-1">
+            <div class="col-md-6">
+                <label asp-for="ContactEmail" class="form-label"></label>
+                <input asp-for="ContactEmail" class="form-control" type="email" />
+                <span asp-validation-for="ContactEmail" class="text-danger small"></span>
+            </div>
+            <div class="col-md-6">
+                <label asp-for="ContactPhone" class="form-label"></label>
+                <input asp-for="ContactPhone" class="form-control" type="tel" />
+                <span asp-validation-for="ContactPhone" class="text-danger small"></span>
+            </div>
+        </div>
+
+        <hr class="my-4" />
+
+        <h6 class="fw-semibold">Institute Admin</h6>
+        <p class="text-secondary small">An Identity user with the InstituteAdmin role will be created for this email.</p>
+
+        <div class="row g-3">
+            <div class="col-md-8">
+                <label asp-for="AdminEmail" class="form-label"></label>
+                <input asp-for="AdminEmail" class="form-control" type="email" />
+                <span asp-validation-for="AdminEmail" class="text-danger small"></span>
+            </div>
+        </div>
+
+        <div class="mt-4 d-flex gap-2">
+            <button type="submit" class="btn btn-primary">Create Institute</button>
+            <a asp-action="Index" class="btn btn-outline-secondary">Cancel</a>
+        </div>
+
+    </form>
+
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

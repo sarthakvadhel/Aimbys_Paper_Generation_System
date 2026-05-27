@@ -1,0 +1,27 @@
+@model IEnumerable<Aimbys.Domain.Entities.Department>
+@{
+    ViewData["Title"] = "Departments";
+    var tableModel = new Aimbys.Web.Models.UI.DataTableModel(
+        Caption: "Departments",
+        Columns: new[]
+        {
+            new Aimbys.Web.Models.UI.DataTableColumn("Name"),
+            new Aimbys.Web.Models.UI.DataTableColumn("Code"),
+            new Aimbys.Web.Models.UI.DataTableColumn("Active", Aimbys.Web.Models.UI.DataTableAlign.Center),
+            new Aimbys.Web.Models.UI.DataTableColumn("Actions", Aimbys.Web.Models.UI.DataTableAlign.End)
+        },
+        Rows: Model.Select(d => new Aimbys.Web.Models.UI.DataTableRow(new Aimbys.Web.Models.UI.DataTableCell[]
+        {
+            new(d.Name),
+            new(d.Code ?? "—"),
+            new(d.IsActive ? "<span class=\"badge bg-success\">Active</span>" : "<span class=\"badge bg-secondary\">Inactive</span>", IsHtml: true),
+            new($"<a href=\"#\" class=\"btn btn-sm btn-outline-secondary\">Edit</a>", IsHtml: true)
+        })).ToList(),
+        EmptyMessage: "No departments configured yet.");
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0">Departments</h4>
+</div>
+
+<partial name="_DataTable" model="tableModel" />

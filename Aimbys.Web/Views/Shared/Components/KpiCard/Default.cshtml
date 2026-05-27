@@ -1,0 +1,44 @@
+@using Aimbys.Web.ViewComponents
+@model KpiCardViewModel
+
+@{
+    var iconPath = Aimbys.Web.Navigation.RoleNavIcons.Get(Model.IconKey);
+}
+
+@*
+    Tiles render at 100% width and let the consumer control column
+    layout via Bootstrap utility classes (`.col-6 .col-xl-3` etc.) on
+    the wrapper. Keeps the component layout-agnostic so it works on
+    any dashboard or in a one-off card embed.
+*@
+
+<article class="aimbys-kpi-card h-100 p-3 p-md-4 bg-body border rounded-3">
+    <div class="d-flex align-items-start justify-content-between mb-3">
+        <span class="aimbys-kpi-card__icon"
+              style="--aimbys-kpi-accent: @Model.AccentHex"
+              aria-hidden="true">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
+                 fill="currentColor" viewBox="0 0 16 16">
+                <path d="@iconPath" />
+            </svg>
+        </span>
+
+        @if (Model.Trend != KpiTrend.None)
+        {
+            var trendClass = Model.Trend == KpiTrend.Up
+                ? "text-success"
+                : "text-danger";
+            var trendArrow = Model.Trend == KpiTrend.Up ? "▲" : "▼";
+            <span class="@trendClass small fw-semibold" aria-hidden="true">
+                @trendArrow
+            </span>
+        }
+    </div>
+
+    <div class="display-6 fw-bolder lh-1 mb-1">@Model.Value</div>
+    <div class="text-secondary fw-medium">@Model.Label</div>
+    @if (!string.IsNullOrEmpty(Model.Sub))
+    {
+        <div class="text-secondary small mt-1 opacity-75">@Model.Sub</div>
+    }
+</article>

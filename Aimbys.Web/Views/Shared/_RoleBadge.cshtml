@@ -1,0 +1,27 @@
+@*
+    Coloured pill badge for an Identity role name. Background tracks
+    the React roleStyles palette (violet / blue / sky / amber / green)
+    so the badge reads the same on every screen. Foreground is white
+    for legibility.
+*@
+
+@model string
+
+@{
+    var key = (Model ?? string.Empty).Trim();
+    var color = key switch
+    {
+        "SuperAdmin"     => "#7c3aed",
+        "InstituteAdmin" => "#1d4ed8",
+        "Teacher"        => "#0369a1",
+        "Examiner"       => "#d97706",
+        "Student"        => "#15803d",
+        _                => "#64748b"
+    };
+    var label = string.IsNullOrEmpty(key) ? "—" : key;
+}
+
+<span class="badge rounded-pill text-uppercase"
+      style="background: @color; color: #fff; font-size: 0.7rem; letter-spacing: 0.04em;">
+    @label
+</span>

@@ -1,0 +1,52 @@
+@model IEnumerable<Aimbys.Web.Areas.Student.Controllers.LeaderboardEntry>
+@{
+    ViewData["Title"] = "Leaderboard";
+}
+
+<div class="container-fluid py-4 px-3 px-md-4">
+
+    <header class="mb-4">
+        <div class="text-secondary small text-uppercase" style="letter-spacing: 0.08em;">Student / Leaderboard</div>
+        <h1 class="h3 fw-bold mt-1 mb-0">Leaderboard</h1>
+    </header>
+
+    @if (Model != null && Model.Any())
+    {
+        <article class="bg-body border rounded-3 p-3 p-md-4 mb-3">
+            <div class="table-responsive">
+                <table class="table table-sm table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Rank</th>
+                            <th>Name</th>
+                            <th class="text-end">Percentile</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var entry in Model)
+                        {
+                            <tr class="@(entry.Name == "You" ? "table-primary" : "")">
+                                <td>@entry.Rank</td>
+                                <td>@entry.Name</td>
+                                <td class="text-end">@entry.Percentile.ToString("F1")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </article>
+
+        <div class="alert alert-info small mb-0">
+            <i class="bi bi-info-circle me-1"></i>
+            Only your own detailed scores are visible. Other students' names are anonymised.
+        </div>
+    }
+    else
+    {
+        <div class="alert alert-secondary">
+            <i class="bi bi-info-circle me-1"></i>
+            No leaderboard data available.
+        </div>
+    }
+
+</div>

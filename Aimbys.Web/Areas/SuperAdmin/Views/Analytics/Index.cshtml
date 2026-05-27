@@ -1,0 +1,83 @@
+@using Aimbys.Web.ViewComponents
+@{
+    ViewData["Title"] = "Global Analytics";
+}
+
+<div class="container-fluid py-4 px-3 px-md-4">
+
+    <header class="mb-4">
+        <div class="text-secondary small text-uppercase" style="letter-spacing: 0.08em;">SuperAdmin / Analytics</div>
+        <h1 class="h3 fw-bold mt-1 mb-0">Global Analytics</h1>
+    </header>
+
+    @* ---------- KPI tiles ---------- *@
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-xl-3">
+            @await Component.InvokeAsync("KpiCard", new { label = "Total Institutes", value = "2,418", sub = "+12 this month", trend = KpiTrend.Up, iconKey = "building", accentHex = "#1d4ed8" })
+        </div>
+        <div class="col-6 col-xl-3">
+            @await Component.InvokeAsync("KpiCard", new { label = "Registered Users", value = "12,84,302", sub = "+8,420 this week", trend = KpiTrend.Up, iconKey = "people", accentHex = "#0369a1" })
+        </div>
+        <div class="col-6 col-xl-3">
+            @await Component.InvokeAsync("KpiCard", new { label = "Papers Generated", value = "8,51,240", sub = "+1,420 today", trend = KpiTrend.Up, iconKey = "file-earmark-text", accentHex = "#7c3aed" })
+        </div>
+        <div class="col-6 col-xl-3">
+            @await Component.InvokeAsync("KpiCard", new { label = "Active Exams", value = "42,000", sub = "Total completed", trend = KpiTrend.Up, iconKey = "activity", accentHex = "#15803d" })
+        </div>
+    </div>
+
+    @* ---------- Charts ---------- *@
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-xl-8">
+            @await Component.InvokeAsync("ChartCard", new
+            {
+                title = "Platform Activity",
+                subtitle = "Daily logins and exams over recent months",
+                dataUrl = Url.Action("ChartData", "Analytics", new { area = "SuperAdmin", metricKey = "DailyActivity" }),
+                chartType = "line",
+                height = 260
+            })
+        </div>
+        <div class="col-12 col-xl-4">
+            @await Component.InvokeAsync("ChartCard", new
+            {
+                title = "Subject Breakdown",
+                subtitle = "Papers by subject area",
+                dataUrl = Url.Action("ChartData", "Analytics", new { area = "SuperAdmin", metricKey = "SubjectBreakdown" }),
+                chartType = "bar",
+                height = 260
+            })
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-xl-6">
+            @await Component.InvokeAsync("ChartCard", new
+            {
+                title = "Question Type Distribution",
+                subtitle = "Questions across categories",
+                dataUrl = Url.Action("ChartData", "Analytics", new { area = "SuperAdmin", metricKey = "QuestionTypeDist" }),
+                chartType = "radar",
+                height = 280
+            })
+        </div>
+        <div class="col-12 col-xl-6">
+            @await Component.InvokeAsync("ChartCard", new
+            {
+                title = "Pass/Fail Trend",
+                subtitle = "Monthly pass and fail rates",
+                dataUrl = Url.Action("ChartData", "Analytics", new { area = "SuperAdmin", metricKey = "PassFailTrend" }),
+                chartType = "line",
+                height = 280
+            })
+        </div>
+    </div>
+
+    @* ---------- Export ---------- *@
+    <div class="text-end">
+        <a href="@Url.Action("Export", "Analytics", new { area = "SuperAdmin", format = "csv" })" class="btn btn-outline-primary btn-sm">
+            <i class="bi bi-download me-1"></i> Export CSV
+        </a>
+    </div>
+
+</div>

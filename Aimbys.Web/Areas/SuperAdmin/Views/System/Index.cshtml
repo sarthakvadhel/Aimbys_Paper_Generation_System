@@ -1,0 +1,159 @@
+@{
+    ViewData["Title"] = "System Health";
+    var hostedServices = (List<string>)(ViewBag.HostedServices ?? new List<string>());
+    var totalRequests = (int)(ViewBag.TotalRequests ?? 0);
+    var errorRequests = (int)(ViewBag.ErrorRequests ?? 0);
+    var avgResponseMs = (double)(ViewBag.AvgResponseMs ?? 0d);
+    var processMemoryMb = (long)(ViewBag.ProcessMemoryMb ?? 0L);
+    var uptimeMinutes = (double)(ViewBag.UptimeMinutes ?? 0d);
+    var metricsUrl = Url.Action("Metrics", "System", new { area = "SuperAdmin" });
+}
+
+@*
+    SuperAdmin "System Health" view (Chunk 35). KPI tiles up top, an
+    in-process per-minute Chart.js line below, and a hosted-services
+    registry table at the bottom. Numbers come from the in-memory
+    RequestMetricsCollector via ViewBag and a JSON endpoint, so the
+    page survives without an external metrics backend.
+*@
+
+<div class="container-fluid py-4 px-3 px-md-4">
+
+    <header class="mb-4">
+        <div class="text-secondary small text-uppercase" style="letter-spacing: 0.08em;">SuperAdmin / Management</div>
+        <h1 class="h3 fw-bold mt-1 mb-0">System Health</h1>
+    </header>
+
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-xl-3">
+            <article class="aimbys-chart-card h-100 bg-body border rounded-3 p-3">
+                <div class="text-secondary small text-uppercase">Requests (24h)</div>
+                <div class="h3 fw-bold mb-0 mt-1">@totalRequests.ToString("N0")</div>
+                <div class="text-secondary small mt-2">In-process counter</div>
+            </article>
+        </div>
+        <div class="col-6 col-xl-3">
+            <article class="aimbys-chart-card h-100 bg-body border rounded-3 p-3">
+                <div class="text-secondary small text-uppercase">Errors (5xx)</div>
+                <div class="h3 fw-bold mb-0 mt-1 @(errorRequests > 0 ? "text-danger" : "")">@errorRequests.ToString("N0")</div>
+                <div class="text-secondary small mt-2">Status &gt;= 500</div>
+            </article>
+        </div>
+        <div class="col-6 col-xl-3">
+            <article class="aimbys-chart-card h-100 bg-body border rounded-3 p-3">
+                <div class="text-secondary small text-uppercase">Avg response</div>
+                <div class="h3 fw-bold mb-0 mt-1">@avgResponseMs.ToString("F1") <span class="fs-6 text-secondary fw-normal">ms</span></div>
+                <div class="text-secondary small mt-2">Last 24h rolling</div>
+            </article>
+        </div>
+        <div class="col-6 col-xl-3">
+            <article class="aimbys-chart-card h-100 bg-body border rounded-3 p-3">
+                <div class="text-secondary small text-uppercase">Process memory</div>
+                <div class="h3 fw-bold mb-0 mt-1">@processMemoryMb <span class="fs-6 text-secondary fw-normal">MB</span></div>
+                <div class="text-secondary small mt-2">Uptime @uptimeMinutes.ToString("F1") min</div>
+            </article>
+        </div>
+    </div>
+
+    <article class="aimbys-chart-card bg-body border rounded-3 p-3 p-md-4 mb-4">
+        <header class="mb-3">
+            <h2 class="h6 fw-semibold mb-0">Per-minute traffic (last 24h)</h2>
+            <p class="text-secondary small mb-0 mt-1">In-process counters only — restarts wipe the buffer.</p>
+        </header>
+        <div style="height: 280px;">
+            <canvas id="metrics-chart" aria-label="Requests per minute over the last 24 hours"></canvas>
+        </div>
+    </article>
+
+    <article class="aimbys-chart-card bg-body border rounded-3 p-3 p-md-4">
+        <header class="mb-3">
+            <h2 class="h6 fw-semibold mb-0">Hosted services</h2>
+            <p class="text-secondary small mb-0 mt-1">Background workers registered with this process.</p>
+        </header>
+        <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th scope="col">Service</th>
+                        <th scope="col" class="text-end">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (hostedServices.Count == 0)
+                    {
+                        <tr>
+                            <td colspan="2" class="text-center text-secondary py-3">No hosted services registered.</td>
+                        </tr>
+                    }
+                    else
+                    {
+                        foreach (var name in hostedServices)
+                        {
+                            <tr>
+                                <td class="font-monospace small">@name</td>
+                                <td class="text-end"><span class="badge text-bg-success">running</span></td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+    </article>
+
+</div>
+
+@section Scripts {
+    <script>
+        (function () {
+            // Wait for Chart.js to finish loading (it's deferred from
+            // _RoleLayout) and then bind the metrics canvas to the JSON
+            // endpoint. We poll for `Chart` so this script is order-
+            // independent versus the deferred CDN script.
+            function whenChartReady(cb) {
+                if (typeof Chart !== 'undefined') { cb(); return; }
+                setTimeout(function () { whenChartReady(cb); }, 50);
+            }
+
+            whenChartReady(function () {
+                var canvas = document.getElementById('metrics-chart');
+                if (!canvas) return;
+
+                fetch(@Html.Raw(Json.Serialize(metricsUrl)), { credentials: 'same-origin' })
+                    .then(function (r) { return r.json(); })
+                    .then(function (payload) {
+                        new Chart(canvas, {
+                            type: 'line',
+                            data: {
+                                labels: payload.labels,
+                                datasets: payload.datasets.map(function (d, idx) {
+                                    return {
+                                        label: d.label,
+                                        data: d.data,
+                                        borderWidth: 1.5,
+                                        tension: 0.25,
+                                        pointRadius: 0,
+                                        yAxisID: idx === 2 ? 'msAxis' : 'reqAxis'
+                                    };
+                                })
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                interaction: { mode: 'index', intersect: false },
+                                scales: {
+                                    reqAxis: { position: 'left',  beginAtZero: true, title: { display: true, text: 'requests' } },
+                                    msAxis:  { position: 'right', beginAtZero: true, grid: { drawOnChartArea: false }, title: { display: true, text: 'ms' } }
+                                }
+                            }
+                        });
+                    })
+                    .catch(function () {
+                        canvas.replaceWith(Object.assign(document.createElement('div'), {
+                            className: 'text-secondary small',
+                            textContent: 'Failed to load metrics.'
+                        }));
+                    });
+            });
+        })();
+    </script>
+}

@@ -1,0 +1,29 @@
+@model IEnumerable<Aimbys.Domain.Entities.Multilingual.Language>
+@{
+    ViewData["Title"] = "Languages";
+    var tableModel = new Aimbys.Web.Models.UI.DataTableModel(
+        Caption: "Languages",
+        Columns: new[]
+        {
+            new Aimbys.Web.Models.UI.DataTableColumn("Code"),
+            new Aimbys.Web.Models.UI.DataTableColumn("Name"),
+            new Aimbys.Web.Models.UI.DataTableColumn("Default", Aimbys.Web.Models.UI.DataTableAlign.Center),
+            new Aimbys.Web.Models.UI.DataTableColumn("Active", Aimbys.Web.Models.UI.DataTableAlign.Center),
+            new Aimbys.Web.Models.UI.DataTableColumn("Actions", Aimbys.Web.Models.UI.DataTableAlign.End)
+        },
+        Rows: Model.Select(l => new Aimbys.Web.Models.UI.DataTableRow(new Aimbys.Web.Models.UI.DataTableCell[]
+        {
+            new(l.Code),
+            new(l.Name),
+            new(l.IsDefault ? "<span class=\"badge bg-primary\">Default</span>" : "—", IsHtml: true),
+            new(l.IsActive ? "<span class=\"badge bg-success\">Active</span>" : "<span class=\"badge bg-secondary\">Inactive</span>", IsHtml: true),
+            new($"<form method=\"post\" asp-action=\"SetDefault\" class=\"d-inline\"><input type=\"hidden\" name=\"id\" value=\"{l.Id}\" /><button type=\"submit\" class=\"btn btn-sm btn-outline-primary\">Set Default</button></form> <form method=\"post\" asp-action=\"Toggle\" class=\"d-inline\"><input type=\"hidden\" name=\"id\" value=\"{l.Id}\" /><button type=\"submit\" class=\"btn btn-sm btn-outline-secondary\">{(l.IsActive ? "Deactivate" : "Activate")}</button></form>", IsHtml: true)
+        })).ToList(),
+        EmptyMessage: "No languages configured yet.");
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0">Languages</h4>
+</div>
+
+<partial name="_DataTable" model="tableModel" />

@@ -1,0 +1,33 @@
+@*
+    Chrome-free layout for full-bleed surfaces (the PARAKH role-pick
+    landing page in Chunk 14 is the first consumer). The default
+    `_Layout.cshtml` wraps content in a navbar + footer + container,
+    which fights the split-screen design. This minimal layout drops
+    those wrappers but keeps the head + scripts + skip-link so
+    accessibility / static-asset wiring stays consistent.
+*@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0d1b2e" />
+    <title>@(ViewData["Title"] is null ? "AIMBYS" : ViewData["Title"] + " — AIMBYS")</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/Aimbys.Web.styles.css" asp-append-version="true" />
+</head>
+<body class="d-flex flex-column min-vh-100">
+    <a class="visually-hidden-focusable position-absolute top-0 start-0 m-2 btn btn-primary btn-sm"
+       href="#aimbys-main">Skip to main content</a>
+
+    <main id="aimbys-main" role="main" class="flex-grow-1 d-flex">
+        @RenderBody()
+    </main>
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

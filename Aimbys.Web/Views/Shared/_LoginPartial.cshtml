@@ -1,0 +1,52 @@
+@using Aimbys.Infrastructure.Identity
+@using Aimbys.Web.Identity
+@using Microsoft.AspNetCore.Identity
+@inject SignInManager<IdentityUser> SignInManager
+@inject UserManager<IdentityUser> UserManager
+
+@*
+    Renders the right-hand chunk of the public-area navbar (used by
+    `_Layout.cshtml`, not the role shells). Authenticated users see a
+    quick link back to their role workspace plus a sign-out button;
+    anonymous users get sign-in / register.
+
+    The "go to my workspace" link is resolved through
+    `RoleHomeRedirector` so the link target stays in lock-step with
+    the post-login redirect from Chunk 14.
+*@
+
+@if (SignInManager.IsSignedIn(User))
+{
+    var workspacePath = RoleHomeRedirector.GetHomePath(User);
+    var hasRole = RoleHomeRedirector.HasCanonicalRole(User);
+    <ul class="navbar-nav align-items-stretch align-items-lg-center">
+        @if (hasRole)
+        {
+            <li class="nav-item">
+                <a class="nav-link" href="@workspacePath">
+                    My workspace
+                </a>
+            </li>
+        }
+        <li class="nav-item d-flex align-items-lg-center">
+            <span class="navbar-text small me-lg-2">@User.Identity?.Name</span>
+        </li>
+        <li class="nav-item">
+            <form class="d-inline" asp-controller="Account" asp-action="Logout" method="post">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="btn btn-outline-light btn-sm">Sign out</button>
+            </form>
+        </li>
+    </ul>
+}
+else
+{
+    <ul class="navbar-nav align-items-stretch align-items-lg-center">
+        <li class="nav-item">
+            <a class="nav-link" asp-controller="Account" asp-action="Login">Sign in</a>
+        </li>
+        <li class="nav-item">
+            <a class="btn btn-primary btn-sm" asp-controller="Account" asp-action="Register">Register</a>
+        </li>
+    </ul>
+}

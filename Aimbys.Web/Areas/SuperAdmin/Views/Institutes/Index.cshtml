@@ -1,0 +1,47 @@
+@model Aimbys.Web.ViewModels.Institutes.InstituteIndexViewModel
+@{
+    ViewData["Title"] = "Institutes";
+}
+
+<div class="container-fluid py-4 px-3 px-md-4">
+
+    <header class="mb-4 d-flex flex-wrap align-items-center justify-content-between gap-2">
+        <div>
+            <div class="text-secondary small text-uppercase" style="letter-spacing: 0.08em;">SuperAdmin / Institutes</div>
+            <h1 class="h3 fw-bold mt-1 mb-0">Institute Management</h1>
+        </div>
+        <div class="d-flex gap-2">
+            <a asp-action="Export" asp-route-status="@Context.Request.Query["status"]" asp-route-type="@Context.Request.Query["type"]"
+               class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-download"></i> Export CSV
+            </a>
+            <a asp-action="Create" class="btn btn-primary btn-sm">
+                <i class="bi bi-plus-lg"></i> New Institute
+            </a>
+        </div>
+    </header>
+
+    @if (TempData["Success"] is string success)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            @success
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+    @if (TempData["Error"] is string error)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            @error
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    <partial name="_FilterBar" model="Model.FilterBar" />
+
+    <div class="mt-3">
+        <partial name="_DataTable" model="Model.Table" />
+    </div>
+
+    <partial name="_PaginationPartial" model="Model.Pagination" />
+
+</div>

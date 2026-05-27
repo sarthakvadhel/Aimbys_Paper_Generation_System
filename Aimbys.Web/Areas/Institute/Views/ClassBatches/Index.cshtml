@@ -1,0 +1,107 @@
+@model IEnumerable<Aimbys.Domain.Entities.ClassBatch>
+@using Aimbys.Domain.Entities
+@{
+    ViewData["Title"] = "Class Batches";
+    var academicYears = ViewBag.AcademicYears as IEnumerable<AcademicYear> ?? Enumerable.Empty<AcademicYear>();
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0">Class Batches</h4>
+    @if (!academicYears.Any())
+    {
+        <a asp-area="Institute" asp-controller="AcademicYears" asp-action="Index"
+           class="btn btn-warning btn-sm">⚠ Create an Academic Year first</a>
+    }
+    else
+    {
+        <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addBatchModal">+ Add Class Batch</button>
+    }
+</div>
+
+@if (!academicYears.Any())
+{
+    <div class="alert alert-warning">
+        You need at least one <strong>Academic Year</strong> before creating class batches.
+        <a asp-area="Institute" asp-controller="AcademicYears" asp-action="Index">Go to Academic Years →</a>
+    </div>
+}
+
+<div class="card shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Name</th>
+                    <th>Academic Year</th>
+                    <th>Grade Level</th>
+                    <th>Created</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (!Model.Any())
+                {
+                    <tr><td colspan="4" class="text-muted text-center py-4">No class batches yet.</td></tr>
+                }
+                @foreach (var cb in Model)
+                {
+                    <tr>
+                        <td>@cb.Name</td>
+                        <td>@(cb.AcademicYear?.Name ?? "—")</td>
+                        <td>@(cb.GradeLevel ?? "—")</td>
+                        <td>@cb.CreatedAtUtc.ToString("dd MMM yyyy")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@if (academicYears.Any())
+{
+    <div class="modal fade" id="addBatchModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form asp-area="Institute" asp-controller="ClassBatches" asp-action="Create" method="post">
+                    @Html.AntiForgeryToken()
+                    <div class="modal-header">
+                        <h5 class="modal-title">Add Class Batch</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label">Name <span class="text-danger">*</span></label>
+                            <input type="text" name="name" class="form-control"
+                                   placeholder="e.g. Class 10 - Batch A" required maxlength="100" />
+                            <div class="form-text">Use this exact name in the <code>ClassBatchName</code> column of your student CSV.</div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Academic Year <span class="text-danger">*</span></label>
+                            <select name="academicYearId" class="form-select" required>
+                                <option value="">-- Select --</option>
+                                @foreach (var y in academicYears)
+                                {
+                                    if (y.IsCurrent)
+                                    {
+                                        <option value="@y.Id" selected>@y.Name</option>
+                                    }
+                                    else
+                                    {
+                                        <option value="@y.Id">@y.Name</option>
+                                    }
+                                }
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Grade Level</label>
+                            <input type="text" name="gradeLevel" class="form-control" placeholder="e.g. 10, 12, BSc-Year-2" />
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Save</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+}

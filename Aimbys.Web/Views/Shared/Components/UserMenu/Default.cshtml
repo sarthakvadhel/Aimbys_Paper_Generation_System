@@ -1,0 +1,41 @@
+@model Aimbys.Web.ViewComponents.UserMenuViewModel
+
+@*
+    User-card chunk pinned to the bottom of the role sidebar. The
+    sign-out form is intentionally embedded as a small POST so anti-
+    forgery still applies (matches AccountController.Logout's
+    [ValidateAntiForgeryToken]).
+*@
+
+<div class="aimbys-role-usermenu d-flex flex-column gap-2 p-3 border-top">
+    @if (Model.IsAuthenticated)
+    {
+        <div class="d-flex align-items-center gap-2">
+            <span class="aimbys-role-usermenu__avatar fw-bold flex-shrink-0" aria-hidden="true">
+                @Model.Initials
+            </span>
+            <div class="flex-grow-1 min-w-0">
+                <div class="text-body fw-semibold text-truncate" title="@Model.DisplayName">
+                    @Model.DisplayName
+                </div>
+                @if (!string.IsNullOrEmpty(Model.RoleBadge))
+                {
+                    <span class="badge text-bg-secondary text-uppercase">@Model.RoleBadge</span>
+                }
+            </div>
+        </div>
+
+        <form asp-area="" asp-controller="Account" asp-action="Logout" method="post" class="m-0">
+            @Html.AntiForgeryToken()
+            <button type="submit" class="btn btn-outline-secondary btn-sm w-100">
+                Sign out
+            </button>
+        </form>
+    }
+    else
+    {
+        <a class="btn btn-primary btn-sm w-100" asp-controller="Account" asp-action="Login">
+            Sign in
+        </a>
+    }
+</div>

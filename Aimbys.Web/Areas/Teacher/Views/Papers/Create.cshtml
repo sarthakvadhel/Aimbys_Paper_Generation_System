@@ -1,0 +1,37 @@
+@{
+    ViewData["Title"] = "Create Paper";
+    var subjects = ViewBag.Subjects as IEnumerable<Aimbys.Domain.Entities.Subject> ?? Enumerable.Empty<Aimbys.Domain.Entities.Subject>();
+}
+
+<h4 class="mb-3">Create New Paper</h4>
+
+<form method="post" asp-action="Create" asp-area="Teacher" asp-controller="Papers">
+    <div class="row g-3">
+        <div class="col-md-8">
+            <label for="title" class="form-label">Title</label>
+            <input type="text" class="form-control" id="title" name="title" required maxlength="500" />
+        </div>
+        <div class="col-md-4">
+            <label for="subjectId" class="form-label">Subject</label>
+            <select class="form-select" id="subjectId" name="subjectId" required>
+                <option value="">-- Select Subject --</option>
+                @foreach (var s in subjects)
+                {
+                    <option value="@s.Id">@s.Name</option>
+                }
+            </select>
+        </div>
+        <div class="col-md-4">
+            <label for="totalMarks" class="form-label">Total Marks</label>
+            <input type="number" class="form-control" id="totalMarks" name="totalMarks" min="1" value="100" required />
+        </div>
+        <div class="col-md-4">
+            <label for="durationMinutes" class="form-label">Duration (minutes)</label>
+            <input type="number" class="form-control" id="durationMinutes" name="durationMinutes" min="1" value="180" required />
+        </div>
+        <div class="col-12">
+            <button type="submit" class="btn btn-primary">Create Draft</button>
+            <a asp-action="Index" class="btn btn-outline-secondary ms-2">Cancel</a>
+        </div>
+    </div>
+</form>

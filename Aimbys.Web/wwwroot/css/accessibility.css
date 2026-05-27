@@ -1,0 +1,76 @@
+/* ===== Accessibility Enhancements (Chunk 40) ===== */
+
+/* Skip-to-content link (already in layout, ensure styling) */
+.visually-hidden-focusable:focus {
+    z-index: 9999;
+}
+
+/* Ensure minimum touch targets in exam mode */
+.aimbys-exam-nav .btn,
+.aimbys-exam-actions .btn {
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0.5rem 0.75rem;
+}
+
+/* Question number buttons in exam */
+.aimbys-question-nav-btn {
+    min-width: 44px;
+    min-height: 44px;
+    margin: 2px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Focus indicators for keyboard navigation */
+*:focus-visible {
+    outline: 3px solid var(--aimbys-role-accent, #0d6efd);
+    outline-offset: 2px;
+}
+
+/* Ensure form validation messages link properly */
+.field-validation-error {
+    display: block;
+    margin-top: 0.25rem;
+}
+
+/* Responsive table wrapper — no overflow */
+.table-responsive {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Print styles for A4 */
+@media print {
+    .aimbys-role-shell__sidebar,
+    .aimbys-role-shell__drawer,
+    .aimbys-mobile-bottom-nav,
+    .aimbys-topbar {
+        display: none !important;
+    }
+    .aimbys-role-shell__layout {
+        display: block !important;
+    }
+    #aimbys-main {
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+    @page {
+        size: A4;
+        margin: 15mm;
+    }
+}
+
+/* Dark mode badge adjustments */
+[data-bs-theme="dark"] .badge.text-bg-warning {
+    color: #000 !important;
+}
+[data-bs-theme="dark"] .badge.text-bg-info {
+    color: #000 !important;
+}
+
+/* Chart containers responsive */
+.aimbys-chart-card canvas {
+    max-width: 100%;
+}

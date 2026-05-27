@@ -1,0 +1,46 @@
+@{
+    ViewData["Title"] = "Institute access suspended";
+}
+
+@*
+    Rendered with HTTP 403 by HomeController.SubscriptionSuspended.
+    Reached when SubscriptionEnforcementMiddleware detects that the
+    owning institute is in a Suspended / Expired / past-GracePeriod
+    state. The middleware lets SuperAdmin through unconditionally so
+    this page is only ever shown to InstituteAdmin / Teacher / Student.
+*@
+
+<div class="row justify-content-center">
+    <div class="col-lg-8 col-xl-7">
+        <div class="card border-warning shadow-sm mt-4">
+            <div class="card-body p-4 p-md-5">
+                <div class="d-flex align-items-center mb-3">
+                    <span class="badge bg-warning text-dark me-2">Suspended</span>
+                    <h1 class="h4 mb-0">Institute access is currently paused</h1>
+                </div>
+
+                <p class="lead text-secondary">
+                    Your institute's subscription has been suspended or has expired,
+                    so the teacher and student surfaces are temporarily read-only.
+                </p>
+
+                <p>
+                    Please contact your institute administrator or the platform
+                    support team to restore access. Your data is preserved in full
+                    and will be available the moment the subscription is reactivated.
+                </p>
+
+                <hr class="my-4" />
+
+                <div class="d-flex flex-column flex-md-row gap-2">
+                    <a class="btn btn-outline-secondary" asp-controller="Home" asp-action="Index">
+                        Return to home
+                    </a>
+                    <a class="btn btn-outline-primary" asp-controller="Account" asp-action="Logout">
+                        Sign out
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

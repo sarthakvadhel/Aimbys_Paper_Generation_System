@@ -1,0 +1,42 @@
+{
+  "key": "QuestionApproval",
+  "version": 1,
+  "description": "Question authoring + approval lifecycle. Submit -> review -> approve/reject -> retire -> archive.",
+  "states": [
+    "Draft",
+    "Submitted",
+    "UnderReview",
+    "Approved",
+    "Rejected",
+    "Retired",
+    "Archived"
+  ],
+  "terminalStates": [
+    "Archived"
+  ],
+  "transitions": [
+    { "fromState": "Draft",       "toState": "Submitted",   "requiredRole": "Teacher", "requiredPermission": "CanCreateQuestions",  "queueName": "QuestionInbox" },
+    { "fromState": "Submitted",   "toState": "UnderReview", "requiredRole": "Teacher", "requiredPermission": "CanApproveQuestions", "queueName": "QuestionReview" },
+    { "fromState": "UnderReview", "toState": "Approved",    "requiredRole": "Teacher", "requiredPermission": "CanApproveQuestions", "queueName": null },
+    { "fromState": "UnderReview", "toState": "Rejected",    "requiredRole": "Teacher", "requiredPermission": "CanApproveQuestions", "queueName": null },
+    { "fromState": "Rejected",    "toState": "Draft",       "requiredRole": "Teacher", "requiredPermission": "CanCreateQuestions",  "queueName": null },
+    { "fromState": "Approved",    "toState": "Retired",     "requiredRole": "Teacher", "requiredPermission": "CanManageQuestionBank", "queueName": null },
+    { "fromState": "Retired",     "toState": "Archived",    "requiredRole": "InstituteAdmin", "queueName": null }
+  ],
+  "escalationRules": [
+    {
+      "state": "Submitted",
+      "maxDurationMinutes": 1440,
+      "reminderAtPercent": 75,
+      "escalateToRole": "Teacher",
+      "escalateToPermission": "CanApproveQuestions"
+    },
+    {
+      "state": "UnderReview",
+      "maxDurationMinutes": 1440,
+      "reminderAtPercent": 75,
+      "escalateToRole": "InstituteAdmin",
+      "escalateToPermission": null
+    }
+  ]
+}

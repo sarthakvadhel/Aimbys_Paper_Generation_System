@@ -1,0 +1,243 @@
+@{
+    ViewData["Title"] = "Coding IDE";
+}
+
+<div class="container-fluid px-4 py-3">
+    <div class="d-flex align-items-center justify-content-between mb-3">
+        <h4 class="mb-0"><i class="bi bi-code me-2"></i>Coding IDE</h4>
+        <div class="d-flex gap-2">
+            <select id="languageSelect" class="form-select form-select-sm" style="width:auto;">
+                <option value="javascript">JavaScript</option>
+                <option value="python">Python</option>
+                <option value="java">Java</option>
+                <option value="cpp">C++</option>
+                <option value="csharp">C#</option>
+                <option value="sql">SQL</option>
+            </select>
+            <button id="runBtn" class="btn btn-sm btn-primary">
+                <i class="bi bi-play-fill me-1"></i>Run
+            </button>
+            <button id="saveBtn" class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-floppy me-1"></i>Save
+            </button>
+        </div>
+    </div>
+
+    <div class="row g-3" style="height: calc(100vh - 200px); min-height: 500px;">
+        <!-- Editor pane -->
+        <div class="col-md-7 d-flex flex-column">
+            <div class="card flex-grow-1">
+                <div class="card-header py-1 px-3 d-flex align-items-center">
+                    <small class="text-muted">Editor</small>
+                </div>
+                <div class="card-body p-0 position-relative" style="overflow:hidden;">
+                    <div id="monacoEditor" style="width:100%;height:100%;position:absolute;top:0;left:0;"></div>
+                    <!-- Fallback textarea for when Monaco CDN is unavailable -->
+                    <textarea id="fallbackEditor" class="form-control font-monospace d-none"
+                              style="width:100%;height:100%;resize:none;border:none;border-radius:0;"
+                              placeholder="// Write your code here..."></textarea>
+                </div>
+            </div>
+        </div>
+
+        <!-- Output pane -->
+        <div class="col-md-5 d-flex flex-column">
+            <div class="card flex-grow-1">
+                <div class="card-header py-1 px-3 d-flex align-items-center justify-content-between">
+                    <small class="text-muted">Output</small>
+                    <span id="statusBadge" class="badge bg-secondary d-none"></span>
+                </div>
+                <div class="card-body p-0" style="overflow:auto;">
+                    <!-- Summary -->
+                    <div id="resultSummary" class="p-3 d-none">
+                        <div class="alert mb-2" id="summaryAlert"></div>
+                    </div>
+                    <!-- Results table -->
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover mb-0 d-none" id="resultsTable">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>#</th>
+                                    <th>Status</th>
+                                    <th>Expected</th>
+                                    <th>Actual</th>
+                                    <th>Time (ms)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="resultsBody"></tbody>
+                        </table>
+                    </div>
+                    <!-- Error output -->
+                    <pre id="errorOutput" class="p-3 text-danger small mb-0 d-none"></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.50.0/min/vs/loader.js"></script>
+<script>
+(function () {
+    'use strict';
+
+    let editor = null;
+    const editorContainer = document.getElementById('monacoEditor');
+    const fallbackEditor = document.getElementById('fallbackEditor');
+    const languageSelect = document.getElementById('languageSelect');
+    const runBtn = document.getElementById('runBtn');
+    const saveBtn = document.getElementById('saveBtn');
+
+    // Language map for Monaco
+    const langMap = {
+        'javascript': 'javascript',
+        'python': 'python',
+        'java': 'java',
+        'cpp': 'cpp',
+        'csharp': 'csharp',
+        'sql': 'sql'
+    };
+
+    // Default code samples
+    const defaultCode = {
+        'javascript': '// JavaScript\nfunction solve(input) {\n    return "Hello, World!";\n}\n',
+        'python': '# Python\ndef solve(input):\n    return "Hello, World!"\n',
+        'java': '// Java\npublic class Solution {\n    public String solve(String input) {\n        return "Hello, World!";\n    }\n}\n',
+        'cpp': '// C++\n#include <string>\nusing namespace std;\n\nstring solve(string input) {\n    return "Hello, World!";\n}\n',
+        'csharp': '// C#\npublic class Solution\n{\n    public string Solve(string input)\n    {\n        return "Hello, World!";\n    }\n}\n',
+        'sql': '-- SQL\nSELECT \'Hello, World!\' AS result;\n'
+    };
+
+    // Try to load Monaco editor
+    try {
+        require.config({ paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.50.0/min/vs' } });
+        require(['vs/editor/editor.main'], function () {
+            editor = monaco.editor.create(editorContainer, {
+                value: defaultCode['javascript'],
+                language: 'javascript',
+                theme: 'vs-dark',
+                automaticLayout: true,
+                minimap: { enabled: false },
+                fontSize: 14,
+                lineNumbers: 'on',
+                scrollBeyondLastLine: false,
+                padding: { top: 8 }
+            });
+
+            languageSelect.addEventListener('change', function () {
+                const lang = this.value;
+                const model = editor.getModel();
+                monaco.editor.setModelLanguage(model, langMap[lang] || lang);
+                editor.setValue(defaultCode[lang] || '');
+            });
+        });
+    } catch (e) {
+        // Fallback: show textarea
+        editorContainer.classList.add('d-none');
+        fallbackEditor.classList.remove('d-none');
+        fallbackEditor.value = defaultCode['javascript'];
+
+        languageSelect.addEventListener('change', function () {
+            fallbackEditor.value = defaultCode[this.value] || '';
+        });
+    }
+
+    function getSourceCode() {
+        if (editor) return editor.getValue();
+        return fallbackEditor.value;
+    }
+
+    // Run button
+    runBtn.addEventListener('click', async function () {
+        const code = getSourceCode();
+        if (!code.trim()) return;
+
+        runBtn.disabled = true;
+        runBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Running…';
+
+        try {
+            const res = await fetch('@Url.Action("Run", "CodingIde", new { area = "Teacher" })', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    language: languageSelect.value,
+                    sourceCode: code,
+                    questionId: null,
+                    sampleOnly: true
+                })
+            });
+
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({ error: 'Unknown error' }));
+                showError(err.error || 'Request failed');
+                return;
+            }
+
+            const data = await res.json();
+            showResults(data);
+        } catch (ex) {
+            showError(ex.message || 'Network error');
+        } finally {
+            runBtn.disabled = false;
+            runBtn.innerHTML = '<i class="bi bi-play-fill me-1"></i>Run';
+        }
+    });
+
+    // Save button (placeholder)
+    saveBtn.addEventListener('click', function () {
+        alert('Save as question — not wired in V1.');
+    });
+
+    function showResults(data) {
+        const summary = document.getElementById('resultSummary');
+        const alert = document.getElementById('summaryAlert');
+        const table = document.getElementById('resultsTable');
+        const tbody = document.getElementById('resultsBody');
+        const badge = document.getElementById('statusBadge');
+        const errOut = document.getElementById('errorOutput');
+
+        errOut.classList.add('d-none');
+        summary.classList.remove('d-none');
+        table.classList.remove('d-none');
+        badge.classList.remove('d-none');
+
+        const allPassed = data.success && data.passedTestCases === data.totalTestCases;
+        alert.className = 'alert mb-2 ' + (allPassed ? 'alert-success' : 'alert-warning');
+        alert.textContent = allPassed
+            ? `All ${data.totalTestCases} test case(s) passed!`
+            : `${data.passedTestCases}/${data.totalTestCases} test case(s) passed.`;
+
+        badge.className = 'badge ' + (allPassed ? 'bg-success' : 'bg-warning');
+        badge.textContent = allPassed ? 'PASS' : 'PARTIAL';
+
+        tbody.innerHTML = '';
+        (data.results || []).forEach(function (r) {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${r.index}</td>
+                <td>${r.passed ? '<i class="bi bi-check-circle-fill text-success"></i>' : '<i class="bi bi-x-circle-fill text-danger"></i>'}</td>
+                <td><code>${escapeHtml(r.expectedOutput)}</code></td>
+                <td><code>${escapeHtml(r.actualOutput || '—')}</code></td>
+                <td>${r.executionTimeMs}</td>`;
+            tbody.appendChild(row);
+        });
+    }
+
+    function showError(msg) {
+        const errOut = document.getElementById('errorOutput');
+        const summary = document.getElementById('resultSummary');
+        const table = document.getElementById('resultsTable');
+        summary.classList.add('d-none');
+        table.classList.add('d-none');
+        errOut.classList.remove('d-none');
+        errOut.textContent = msg;
+    }
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text || '';
+        return div.innerHTML;
+    }
+})();
+</script>
+}

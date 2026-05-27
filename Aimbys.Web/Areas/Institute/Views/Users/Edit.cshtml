@@ -1,0 +1,171 @@
+@model Aimbys.Web.ViewModels.Users.UserEditViewModel
+@{
+    ViewData["Title"] = "Edit User Profile";
+}
+
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card shadow-sm">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Edit Profile</h5>
+                <span class="badge text-bg-secondary">@Model.Role</span>
+            </div>
+            <div class="card-body">
+                <form asp-action="Edit" method="post">
+                    <input type="hidden" asp-for="ProfileId" />
+                    <input type="hidden" asp-for="Role" />
+                    <input type="hidden" asp-for="IsTeacher" />
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label asp-for="DisplayName" class="form-label">Display Name</label>
+                            <input asp-for="DisplayName" class="form-control" />
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="Email" class="form-label">Email</label>
+                            <input asp-for="Email" class="form-control" readonly disabled />
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label asp-for="Designation" class="form-label">Designation</label>
+                            <input asp-for="Designation" class="form-control" />
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="DepartmentId" class="form-label">Department</label>
+                            <select asp-for="DepartmentId" asp-items="Model.Departments" class="form-select">
+                                <option value="">-- None --</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    @if (Model.IsTeacher)
+                    {
+                        <hr />
+                        <h6 class="mb-3">Permissions</h6>
+
+                        <!-- Authoring Group -->
+                        <div class="mb-3">
+                            <strong class="text-muted small text-uppercase">Authoring</strong>
+                            <div class="row mt-2">
+                                <div class="col-md-4">
+                                    <div class="form-check">
+                                        <input asp-for="CanCreateQuestions" class="form-check-input" />
+                                        <label asp-for="CanCreateQuestions" class="form-check-label">Create Questions</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-check">
+                                        <input asp-for="CanManageQuestionBank" class="form-check-input" />
+                                        <label asp-for="CanManageQuestionBank" class="form-check-label">Manage Question Bank</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-check">
+                                        <input asp-for="CanApproveQuestions" class="form-check-input" />
+                                        <label asp-for="CanApproveQuestions" class="form-check-label">Approve Questions</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Paper Group -->
+                        <div class="mb-3">
+                            <strong class="text-muted small text-uppercase">Paper</strong>
+                            <div class="row mt-2">
+                                <div class="col-md-4">
+                                    <div class="form-check">
+                                        <input asp-for="CanGeneratePaper" class="form-check-input" />
+                                        <label asp-for="CanGeneratePaper" class="form-check-label">Generate Paper</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-check">
+                                        <input asp-for="CanManageBlueprints" class="form-check-input" />
+                                        <label asp-for="CanManageBlueprints" class="form-check-label">Manage Blueprints</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Assessment Group -->
+                        <div class="mb-3">
+                            <strong class="text-muted small text-uppercase">Assessment</strong>
+                            <div class="row mt-2">
+                                <div class="col-md-4">
+                                    <div class="form-check">
+                                        <input asp-for="CanEvaluate" class="form-check-input" />
+                                        <label asp-for="CanEvaluate" class="form-check-label">Evaluate</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-check">
+                                        <input asp-for="CanModerate" class="form-check-input" />
+                                        <label asp-for="CanModerate" class="form-check-label">Moderate</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-check">
+                                        <input asp-for="CanReviewCodingQuestions" class="form-check-input" />
+                                        <label asp-for="CanReviewCodingQuestions" class="form-check-label">Review Coding Questions</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Operations Group -->
+                        <div class="mb-3">
+                            <strong class="text-muted small text-uppercase">Operations</strong>
+                            <div class="row mt-2">
+                                <div class="col-md-4">
+                                    <div class="form-check">
+                                        <input asp-for="CanScheduleExam" class="form-check-input" />
+                                        <label asp-for="CanScheduleExam" class="form-check-label">Schedule Exam</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-check">
+                                        <input asp-for="CanPublishResults" class="form-check-input" />
+                                        <label asp-for="CanPublishResults" class="form-check-label">Publish Results</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-check">
+                                        <input asp-for="CanAssignEvaluators" class="form-check-input" />
+                                        <label asp-for="CanAssignEvaluators" class="form-check-label">Assign Evaluators</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="form-check">
+                                        <input asp-for="CanProctor" class="form-check-input" />
+                                        <label asp-for="CanProctor" class="form-check-label">Proctor</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Analytics Group -->
+                        <div class="mb-3">
+                            <strong class="text-muted small text-uppercase">Analytics</strong>
+                            <div class="row mt-2">
+                                <div class="col-md-4">
+                                    <div class="form-check">
+                                        <input asp-for="CanManageAnalytics" class="form-check-input" />
+                                        <label asp-for="CanManageAnalytics" class="form-check-label">Manage Analytics</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+
+                    <hr />
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">Save Changes</button>
+                        <a asp-action="Index" class="btn btn-outline-secondary">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>

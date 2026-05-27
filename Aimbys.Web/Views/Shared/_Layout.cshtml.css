@@ -1,0 +1,3 @@
+/* Layout-scoped styles intentionally left empty.
+   AIMBYS layout tokens live in /wwwroot/css/site.css so they can be
+   reused outside the layout (partials, view components). */

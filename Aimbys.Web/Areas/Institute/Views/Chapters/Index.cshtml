@@ -1,0 +1,27 @@
+@model IEnumerable<Aimbys.Domain.Entities.Chapter>
+@{
+    ViewData["Title"] = "Chapters";
+    var tableModel = new Aimbys.Web.Models.UI.DataTableModel(
+        Caption: "Chapters",
+        Columns: new[]
+        {
+            new Aimbys.Web.Models.UI.DataTableColumn("Order", Aimbys.Web.Models.UI.DataTableAlign.Center),
+            new Aimbys.Web.Models.UI.DataTableColumn("Title"),
+            new Aimbys.Web.Models.UI.DataTableColumn("Description"),
+            new Aimbys.Web.Models.UI.DataTableColumn("Actions", Aimbys.Web.Models.UI.DataTableAlign.End)
+        },
+        Rows: Model.Select(c => new Aimbys.Web.Models.UI.DataTableRow(new Aimbys.Web.Models.UI.DataTableCell[]
+        {
+            new(c.SortOrder.ToString()),
+            new(c.Title),
+            new(c.Description ?? "—"),
+            new($"<a href=\"#\" class=\"btn btn-sm btn-outline-secondary\">Edit</a>", IsHtml: true)
+        })).ToList(),
+        EmptyMessage: "No chapters added yet.");
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0">Chapters</h4>
+</div>
+
+<partial name="_DataTable" model="tableModel" />

@@ -1,0 +1,37 @@
+@using Aimbys.Web.ViewComponents
+@{
+    ViewData["Title"] = "Reports";
+}
+
+<div class="container-fluid py-4 px-3 px-md-4">
+
+    <header class="mb-4">
+        <div class="text-secondary small text-uppercase" style="letter-spacing: 0.08em;">Teacher / Reports</div>
+        <h1 class="h3 fw-bold mt-1 mb-0">Class Performance Reports</h1>
+    </header>
+
+    @* ---------- Charts ---------- *@
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-xl-6">
+            @await Component.InvokeAsync("ChartCard", new
+            {
+                title = "Class Average",
+                subtitle = "Average score per class section",
+                dataUrl = Url.Action("ChartData", "Reports", new { area = "Teacher", metricKey = "ClassAvg" }),
+                chartType = "bar",
+                height = 280
+            })
+        </div>
+        <div class="col-12 col-xl-6">
+            @await Component.InvokeAsync("ChartCard", new
+            {
+                title = "Subject Mastery",
+                subtitle = "Topic-wise mastery percentage",
+                dataUrl = Url.Action("ChartData", "Reports", new { area = "Teacher", metricKey = "SubjectMastery" }),
+                chartType = "radar",
+                height = 280
+            })
+        </div>
+    </div>
+
+</div>
