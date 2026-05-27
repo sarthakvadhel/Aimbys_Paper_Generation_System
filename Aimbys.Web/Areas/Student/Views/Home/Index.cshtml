@@ -1,5 +1,7 @@
+@using Aimbys.Application.Dashboard
 @using Aimbys.Web.Models.UI
 @using Aimbys.Web.ViewComponents
+@model StudentDashboardSnapshot
 @{
     ViewData["Title"] = "Dashboard";
 
@@ -12,25 +14,23 @@
             new DataTableColumn("Score", DataTableAlign.End),
             new DataTableColumn("Percent", DataTableAlign.End)
         },
-        Rows: new[]
-        {
-            Row("Mathematics XII — Unit Test 3", "15 May", "62 / 80", "77.5%"),
-            Row("Physics XII — Chapter Test 4",  "10 May", "44 / 50", "88.0%"),
-            Row("English Core — Essay Test",     "05 May", "28 / 30", "93.3%"),
-            Row("Computer Sci. — Lab Test",      "01 May", "47 / 50", "94.0%")
-        });
-}
+        Rows: Model.RecentResults
+            .Select(r => new DataTableRow(new[]
+            {
+                new DataTableCell(r.ExamTitle),
+                new DataTableCell(r.ExamDateUtc.ToString("dd MMM")),
+                new DataTableCell($"{r.Score:0.##} / {r.MaxScore:0.##}"),
+                new DataTableCell($"{r.Percentage:F1}%")
+            }))
+            .ToList());
 
-@functions {
-    DataTableRow Row(params string[] cells) =>
-        new(cells.Select(c => new DataTableCell(c)).ToArray());
+    var nextExam = Model.NextExam;
 }
 
 @*
-    Student dashboard. Mirrors `StudentDashboard.tsx`: 4 KPI tiles,
-    next-exam banner, recent-results table, subject-progress bar
-    chart. Real numbers replace the seed data when the result
-    aggregate ships.
+    Student dashboard. Live aggregates flow from
+    IDashboardService.GetStudentSnapshotAsync — every value reflects this
+    student's own attempts, results and class-batch schedule.
 *@
 
 <div class="container-fluid py-4 px-3 px-md-4">
@@ -38,39 +38,120 @@
     <header class="mb-4">
         <div class="text-secondary small text-uppercase" style="letter-spacing: 0.08em;">Student / Dashboard</div>
         <h1 class="h3 fw-bold mt-1 mb-1">Welcome back, @User.Identity?.Name</h1>
-        <p class="text-secondary mb-0">Class XII-A &middot; Roll No. 021 &middot; Delhi Public School HQ</p>
+        @if (!string.IsNullOrEmpty(Model.DisplayHeader))
+        {
+            <p class="text-secondary mb-0">@Model.DisplayHeader</p>
+        }
     </header>
 
     <div class="row g-3 mb-4">
         <div class="col-6 col-xl-3">
-            @await Component.InvokeAsync("KpiCard", new { label = "Exams Taken", value = "14",   iconKey = "book",              accentHex = "#15803d" })
+            @await Component.InvokeAsync("KpiCard", new
+            {
+                label = "Exams Taken",
+                value = Model.ExamsTaken.ToString("N0"),
+                sub = Model.ExamsTaken == 0 ? "no attempts yet" : "submitted attempts",
+                iconKey = "book",
+                accentHex = "#15803d"
+            })
         </div>
         <div class="col-6 col-xl-3">
-            @await Component.InvokeAsync("KpiCard", new { label = "Avg Score",   value = "79.5%", iconKey = "graph-up",         accentHex = "#0369a1" })
+            @await Component.InvokeAsync("KpiCard", new
+            {
+                label = "Avg Score",
+                value = Model.AverageScorePercent > 0
+                    ? $"{Model.AverageScorePercent.ToString("F1")}%"
+                    : "—",
+                sub = Model.AverageScorePercent > 0
+                    ? "across published results"
+                    : "no published results yet",
+                iconKey = "graph-up",
+                accentHex = "#0369a1"
+            })
         </div>
         <div class="col-6 col-xl-3">
-            @await Component.InvokeAsync("KpiCard", new { label = "Class Rank",  value = "12th",  iconKey = "activity",         accentHex = "#7c3aed" })
+            @await Component.InvokeAsync("KpiCard", new
+            {
+                label = "Class Rank",
+                value = Model.ClassRank is null
+                    ? "—"
+                    : (Model.ClassSize is not null
+                        ? $"{Model.ClassRank} / {Model.ClassSize}"
+                        : Model.ClassRank.Value.ToString("N0")),
+                sub = Model.ClassRank is null ? "awaiting first result" : "latest published rank",
+                iconKey = "activity",
+                accentHex = "#7c3aed"
+            })
         </div>
         <div class="col-6 col-xl-3">
-            @await Component.InvokeAsync("KpiCard", new { label = "Next Exam",   value = "22 May", iconKey = "calendar",        accentHex = "#d97706" })
+            @await Component.InvokeAsync("KpiCard", new
+            {
+                label = "Next Exam",
+                value = nextExam is null
+                    ? "—"
+                    : nextExam.ScheduledAtUtc.ToString("dd MMM"),
+                sub = nextExam is null
+                    ? "nothing scheduled"
+                    : nextExam.ScheduledAtUtc.ToString("HH:mm 'UTC'"),
+                iconKey = "calendar",
+                accentHex = "#d97706"
+            })
         </div>
     </div>
 
-    @* Next-exam banner — copied from the React reference. *@
-    <div class="aimbys-student-banner d-flex flex-column flex-sm-row align-items-start align-items-sm-center gap-3 p-4 mb-4 rounded-3 border"
-         style="background: #0d1b2e; border-color: #1d4ed8; color: #fff;">
-        <div class="flex-grow-1">
-            <div class="text-success small fw-semibold text-uppercase" style="letter-spacing: 0.1em;">
-                Next Scheduled Exam
+    @* ---------- Next-exam banner ---------- *@
+    @if (nextExam is not null)
+    {
+        <div class="aimbys-student-banner d-flex flex-column flex-sm-row align-items-start align-items-sm-center gap-3 p-4 mb-4 rounded-3 border"
+             style="background: #0d1b2e; border-color: #1d4ed8; color: #fff;">
+            <div class="flex-grow-1">
+                <div class="text-success small fw-semibold text-uppercase" style="letter-spacing: 0.1em;">
+                    Next Scheduled Exam
+                </div>
+                <div class="fw-bold fs-5 mt-1">@nextExam.Title</div>
+                <div class="opacity-75 small mt-1">
+                    @nextExam.ScheduledAtUtc.ToString("dd MMM yyyy · HH:mm 'UTC'")
+                    &middot; @nextExam.DurationMinutes min
+                    &middot; @nextExam.TotalMarks marks
+                </div>
             </div>
-            <div class="fw-bold fs-5 mt-1">Mathematics XII — Unit Test 4</div>
-            <div class="opacity-75 small mt-1">22 May 2026 · 10:00 AM · 3 hours · 80 marks</div>
+            @if (nextExam.IsStartable)
+            {
+                <form method="post" asp-area="Student" asp-controller="Exams" asp-action="Start" class="flex-shrink-0">
+                    <input type="hidden" name="examId" value="@nextExam.ExamId" />
+                    @Html.AntiForgeryToken()
+                    <button class="btn btn-success px-4 fw-semibold" type="submit">
+                        Start Exam Now &rarr;
+                    </button>
+                </form>
+            }
+            else
+            {
+                <button class="btn btn-success px-4 fw-semibold flex-shrink-0" type="button" disabled
+                        title="The exam window has not opened yet">
+                    Opens @nextExam.ScheduledAtUtc.ToString("dd MMM HH:mm 'UTC'")
+                </button>
+            }
         </div>
-        <button class="btn btn-success px-4 fw-semibold flex-shrink-0" type="button" disabled
-                title="Exam attempt surface ships in a later chunk">
-            Start Exam Now &rarr;
-        </button>
-    </div>
+    }
+    else
+    {
+        <div class="d-flex flex-column flex-sm-row align-items-start align-items-sm-center gap-3 p-4 mb-4 rounded-3 border bg-body">
+            <div class="flex-grow-1">
+                <div class="text-secondary small fw-semibold text-uppercase" style="letter-spacing: 0.1em;">
+                    Next Scheduled Exam
+                </div>
+                <div class="fw-semibold fs-6 mt-1">No upcoming exams</div>
+                <div class="text-secondary small mt-1">
+                    When an exam is scheduled for your class batch, it will appear here.
+                </div>
+            </div>
+            <a class="btn btn-outline-secondary btn-sm flex-shrink-0"
+               href="@Url.Action("Index", "Exams", new { area = "Student" })">
+                View exam calendar
+            </a>
+        </div>
+    }
 
     <div class="row g-3 mb-4">
         <div class="col-12 col-xl-7">
@@ -80,8 +161,26 @@
                         <h2 class="h6 fw-semibold mb-0">Recent Results</h2>
                         <p class="text-secondary small mb-0 mt-1">Latest published assessments</p>
                     </div>
+                    @if (Model.RecentResults.Count > 0)
+                    {
+                        <a class="btn btn-sm btn-outline-secondary"
+                           href="@Url.Action("Index", "Results", new { area = "Student" })">
+                            All results
+                        </a>
+                    }
                 </header>
-                <partial name="_DataTable" model="recentScores" />
+                @if (Model.RecentResults.Count == 0)
+                {
+                    <div class="text-center text-secondary py-4">
+                        <div class="mb-2" style="font-size: 1.6rem;">&#128202;</div>
+                        <div class="fw-semibold mb-1">No published results yet</div>
+                        <div class="small">Once you complete and submit an exam, your scores will appear here.</div>
+                    </div>
+                }
+                else
+                {
+                    <partial name="_DataTable" model="recentScores" />
+                }
             </article>
         </div>
         <div class="col-12 col-xl-5">

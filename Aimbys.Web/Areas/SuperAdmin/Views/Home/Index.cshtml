@@ -1,25 +1,40 @@
+@using Aimbys.Application.Dashboard
 @using Aimbys.Web.Models.UI
 @using Aimbys.Web.ViewComponents
+@model SuperAdminDashboardSnapshot
 @{
     ViewData["Title"] = "Dashboard";
+
+    string FormatRelative(DateTime utc)
+    {
+        var span = DateTime.UtcNow - utc;
+        if (span.TotalSeconds < 60)   return "just now";
+        if (span.TotalMinutes < 60)   return $"{(int)span.TotalMinutes}m ago";
+        if (span.TotalHours   < 24)   return $"{(int)span.TotalHours}h ago";
+        if (span.TotalDays    < 7)    return $"{(int)span.TotalDays}d ago";
+        return utc.ToString("dd MMM yyyy");
+    }
 
     var pendingApprovals = new DataTableModel(
         Caption: "Pending approvals",
         Columns: new[]
         {
-            new DataTableColumn("ID"),
+            new DataTableColumn("Code"),
             new DataTableColumn("Institute"),
             new DataTableColumn("Type"),
             new DataTableColumn("Submitted"),
             new DataTableColumn("Tier")
         },
-        Rows: new[]
-        {
-            Row("INST-2024-0892", "Govt. Polytechnic Nagpur",     "New Institute",   "2 hrs ago",   "Government"),
-            Row("INST-2024-0891", "Delhi Public School Chain",    "License Upgrade", "4 hrs ago",   "Private"),
-            Row("INST-2024-0890", "IIT Entrance Academy",         "Feature Request", "6 hrs ago",   "Coaching"),
-            Row("INST-2024-0889", "Maharashtra Board Cells",      "Data Migration",  "1 day ago",   "Government")
-        });
+        Rows: Model.PendingApprovals
+            .Select(a => new DataTableRow(new[]
+            {
+                new DataTableCell(a.DisplayId),
+                new DataTableCell(a.InstituteName),
+                new DataTableCell(a.Type),
+                new DataTableCell(FormatRelative(a.SubmittedAtUtc)),
+                new DataTableCell(a.Tier)
+            }))
+            .ToList());
 
     var systemHealth = new DataTableModel(
         Caption: "Service status",
@@ -30,39 +45,21 @@
             new DataTableColumn("Uptime", DataTableAlign.End),
             new DataTableColumn("Latency", DataTableAlign.End)
         },
-        Rows: new[]
-        {
-            HealthRow("API Gateway",      "operational", "99.98%", "42ms"),
-            HealthRow("Database Cluster", "operational", "99.99%", "8ms"),
-            HealthRow("File Storage",     "operational", "99.97%", "124ms"),
-            HealthRow("Auth Service",     "operational", "100%",   "18ms"),
-            HealthRow("Eval Engine",      "degraded",    "98.4%",  "380ms"),
-            HealthRow("Notification Bus", "operational", "99.92%", "56ms")
-        });
-}
-
-@functions {
-    DataTableRow Row(params string[] cells) =>
-        new(cells.Select(c => new DataTableCell(c)).ToArray());
-
-    DataTableRow HealthRow(string service, string status, string uptime, string latency) =>
-        new(new[]
-        {
-            new DataTableCell(service),
-            new DataTableCell(
-                Aimbys.Web.Models.UI.StatusBadge.Render(status),
-                IsHtml: true),
-            new DataTableCell(uptime),
-            new DataTableCell(latency)
-        });
+        Rows: Model.ServiceHealth
+            .Select(h => new DataTableRow(new[]
+            {
+                new DataTableCell(h.Service),
+                new DataTableCell(StatusBadge.Render(h.Status), IsHtml: true),
+                new DataTableCell(h.Uptime),
+                new DataTableCell(h.Latency)
+            }))
+            .ToList());
 }
 
 @*
-    SuperAdmin dashboard. Mirrors the React `SuperAdminDashboard.tsx`
-    layout: 4 KPI tiles, platform-activity area chart, license
-    doughnut, regional bar chart, system-health table, pending-
-    approvals table. V1 chart endpoints return seed data; later
-    chunks swap in real EF queries.
+    SuperAdmin dashboard. KPIs, charts and tables are all backed by
+    IDashboardService.GetSuperAdminSnapshotAsync (live AppDbContext
+    queries) — there is no longer any hardcoded data on this surface.
 *@
 
 <div class="container-fluid py-4 px-3 px-md-4">
@@ -75,16 +72,54 @@
     @* ---------- KPI tiles ---------- *@
     <div class="row g-3 mb-4">
         <div class="col-6 col-xl-3">
-            @await Component.InvokeAsync("KpiCard", new { label = "Total Institutes",  value = "2,418",     sub = "+12 this month",          trend = KpiTrend.Up, iconKey = "building",          accentHex = "#1d4ed8" })
+            @await Component.InvokeAsync("KpiCard", new
+            {
+                label = "Total Institutes",
+                value = Model.TotalInstitutes.ToString("N0"),
+                sub = Model.InstitutesAddedThisMonth > 0
+                    ? $"+{Model.InstitutesAddedThisMonth:N0} this month"
+                    : "no new institutes this month",
+                trend = Model.InstitutesAddedThisMonth > 0 ? KpiTrend.Up : KpiTrend.None,
+                iconKey = "building",
+                accentHex = "#1d4ed8"
+            })
         </div>
         <div class="col-6 col-xl-3">
-            @await Component.InvokeAsync("KpiCard", new { label = "Registered Users",  value = "12,84,302", sub = "+8,420 this week",         trend = KpiTrend.Up, iconKey = "people",            accentHex = "#0369a1" })
+            @await Component.InvokeAsync("KpiCard", new
+            {
+                label = "Registered Users",
+                value = Model.RegisteredUsers.ToString("N0"),
+                sub = Model.UsersAddedThisWeek > 0
+                    ? $"+{Model.UsersAddedThisWeek:N0} this week"
+                    : "no new users this week",
+                trend = Model.UsersAddedThisWeek > 0 ? KpiTrend.Up : KpiTrend.None,
+                iconKey = "people",
+                accentHex = "#0369a1"
+            })
         </div>
         <div class="col-6 col-xl-3">
-            @await Component.InvokeAsync("KpiCard", new { label = "Papers Generated",  value = "8,51,240",  sub = "+1,420 today",             trend = KpiTrend.Up, iconKey = "file-earmark-text", accentHex = "#7c3aed" })
+            @await Component.InvokeAsync("KpiCard", new
+            {
+                label = "Papers Generated",
+                value = Model.PapersGenerated.ToString("N0"),
+                sub = Model.PapersGeneratedToday > 0
+                    ? $"+{Model.PapersGeneratedToday:N0} today"
+                    : "no papers today yet",
+                trend = Model.PapersGeneratedToday > 0 ? KpiTrend.Up : KpiTrend.None,
+                iconKey = "file-earmark-text",
+                accentHex = "#7c3aed"
+            })
         </div>
         <div class="col-6 col-xl-3">
-            @await Component.InvokeAsync("KpiCard", new { label = "Active Exams Now",  value = "284",       sub = "12,400 candidates online", trend = KpiTrend.Up, iconKey = "activity",          accentHex = "#15803d" })
+            @await Component.InvokeAsync("KpiCard", new
+            {
+                label = "Active Exams Now",
+                value = Model.ActiveExams.ToString("N0"),
+                sub = $"{Model.CandidatesOnline:N0} candidates online",
+                trend = Model.ActiveExams > 0 ? KpiTrend.Up : KpiTrend.None,
+                iconKey = "activity",
+                accentHex = "#15803d"
+            })
         </div>
     </div>
 
@@ -94,7 +129,7 @@
             @await Component.InvokeAsync("ChartCard", new
             {
                 title = "Platform Activity (24h)",
-                subtitle = "Active logins, exams in progress, and paper events",
+                subtitle = "Active users, exams in progress, and paper events per hour",
                 dataUrl = Url.Action("PlatformActivityData", "Home", new { area = "SuperAdmin" }),
                 chartType = "line",
                 height = 260
@@ -141,9 +176,26 @@
                 <h2 class="h6 fw-semibold mb-0">Pending Approvals</h2>
                 <p class="text-secondary small mb-0 mt-1">SuperAdmin governance inbox</p>
             </div>
-            <span class="badge text-bg-primary">@pendingApprovals.Rows.Count</span>
+            <span class="badge text-bg-primary">@Model.PendingApprovals.Count</span>
         </header>
-        <partial name="_DataTable" model="pendingApprovals" />
+        @if (Model.PendingApprovals.Count == 0)
+        {
+            <div class="text-center text-secondary py-5">
+                <div class="mb-2" style="font-size: 1.6rem;">&#9989;</div>
+                <div class="fw-semibold mb-1">No pending approvals</div>
+                <div class="small">All institute onboarding requests have been reviewed.</div>
+            </div>
+        }
+        else
+        {
+            <partial name="_DataTable" model="pendingApprovals" />
+            <div class="text-end mt-3">
+                <a class="btn btn-sm btn-outline-primary"
+                   href="@Url.Action("Index", "Institutes", new { area = "SuperAdmin", status = "PendingApproval" })">
+                    Review all &rarr;
+                </a>
+            </div>
+        }
     </article>
 
 </div>

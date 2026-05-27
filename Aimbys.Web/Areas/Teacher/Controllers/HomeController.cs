@@ -1,32 +1,55 @@
+using Aimbys.Application.Dashboard;
 using Aimbys.Infrastructure.Identity;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Aimbys.Web.Areas.Teacher.Controllers;
 
 /// <summary>
-/// Landing surface for the Teacher / Examiner role. Real teacher
-/// tooling (paper generation, evaluation desk, moderation queues)
-/// lands in later chunks; today the dashboard uses the seed data
-/// from <c>TeacherDashboard.tsx</c>.
+/// Landing surface for the Teacher / Examiner role.
+///
+/// <para>
+/// Slice A: KPIs, charts and tables are all backed by
+/// <see cref="IDashboardService.GetTeacherSnapshotAsync"/> &mdash; the
+/// service resolves the active <c>TeacherProfile</c> from the Identity
+/// user id and returns a teacher-scoped snapshot (own papers, own
+/// evaluations, class averages for exams whose paper this teacher
+/// authored).
+/// </para>
 /// </summary>
 [Area("Teacher")]
 [Authorize(Roles = Roles.Teacher)]
 public class HomeController : Controller
 {
-    public IActionResult Index() => View();
+    private readonly IDashboardService _dashboard;
+    private readonly UserManager<IdentityUser> _userManager;
 
-    /// <summary>Per-class average bar chart (XII-A, XII-B, XI-A, …).</summary>
-    [HttpGet]
-    public IActionResult ClassAvgData()
+    public HomeController(IDashboardService dashboard, UserManager<IdentityUser> userManager)
     {
+        _dashboard = dashboard;
+        _userManager = userManager;
+    }
+
+    public async Task<IActionResult> Index(CancellationToken ct)
+    {
+        var userId = _userManager.GetUserId(User) ?? string.Empty;
+        var snapshot = await _dashboard.GetTeacherSnapshotAsync(userId, ct);
+        return View(snapshot);
+    }
+
+    /// <summary>Per-class average score chart (published results only).</summary>
+    [HttpGet]
+    public async Task<IActionResult> ClassAvgData(CancellationToken ct)
+    {
+        var userId = _userManager.GetUserId(User) ?? string.Empty;
+        var snapshot = await _dashboard.GetTeacherSnapshotAsync(userId, ct);
         return Json(new
         {
-            labels = new[] { "XII-A", "XII-B", "XI-A", "XI-B", "X-C" },
-            datasets = new object[]
-            {
-                new { label = "Avg Score (%)", data = new[] { 74, 68, 71, 65, 78 } }
-            }
+            labels = snapshot.ClassAverageScores.Labels,
+            datasets = snapshot.ClassAverageScores.Series
+                .Select(s => new { label = s.Label, data = s.Data })
+                .ToArray()
         });
     }
 }

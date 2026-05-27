@@ -1,3 +1,5 @@
+using Aimbys.Application.Authorization;
+using Aimbys.Application.Dashboard;
 using Aimbys.Infrastructure.Identity;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -5,44 +7,64 @@ using Microsoft.AspNetCore.Mvc;
 namespace Aimbys.Web.Areas.Institute.Controllers;
 
 /// <summary>
-/// Landing surface for an Institute Administrator. The dashboard view
-/// consumes the Chunk 16 view components; chart endpoints below
-/// return seed data sourced directly from
-/// <c>InstituteDashboard.tsx</c>.
+/// Landing surface for an Institute Administrator.
+///
+/// <para>
+/// Slice A: KPI tiles, charts and tables are all backed by
+/// <see cref="IDashboardService.GetInstituteSnapshotAsync"/>. Tenancy is
+/// resolved through <see cref="IInstituteScope"/>; if the signed-in
+/// user has no resolvable institute the request is forbidden.
+/// </para>
 /// </summary>
 [Area("Institute")]
 [Authorize(Roles = Roles.InstituteAdmin)]
 public class HomeController : Controller
 {
-    public IActionResult Index() => View();
+    private readonly IDashboardService _dashboard;
+    private readonly IInstituteScope _scope;
 
-    /// <summary>Weekly activity area chart (papers + exams per day).</summary>
-    [HttpGet]
-    public IActionResult WeeklyActivityData()
+    public HomeController(IDashboardService dashboard, IInstituteScope scope)
     {
-        return Json(new
-        {
-            labels = new[] { "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun" },
-            datasets = new object[]
-            {
-                new { label = "Papers", data = new[] { 24, 31, 18, 42, 38, 15, 8 } },
-                new { label = "Exams",  data = new[] { 8,  12, 6,  14, 11, 4,  2 } }
-            }
-        });
+        _dashboard = dashboard;
+        _scope = scope;
     }
 
-    /// <summary>Subject performance — average score and pass rate per subject.</summary>
-    [HttpGet]
-    public IActionResult SubjectPerformanceData()
+    public async Task<IActionResult> Index(CancellationToken ct)
     {
-        return Json(new
-        {
-            labels = new[] { "Maths", "Physics", "Chemistry", "English", "Biology", "CS" },
-            datasets = new object[]
-            {
-                new { label = "Avg Score (%)", data = new[] { 64, 68, 71, 82, 74, 78 } },
-                new { label = "Pass Rate (%)",  data = new[] { 78, 81, 84, 92, 87, 89 } }
-            }
-        });
+        var instituteId = await _scope.GetCurrentInstituteIdAsync(User, ct);
+        if (instituteId is null) return Forbid();
+
+        var snapshot = await _dashboard.GetInstituteSnapshotAsync(instituteId.Value, ct);
+        return View(snapshot);
     }
+
+    /// <summary>7-day papers + exams activity feed.</summary>
+    [HttpGet]
+    public async Task<IActionResult> WeeklyActivityData(CancellationToken ct)
+    {
+        var instituteId = await _scope.GetCurrentInstituteIdAsync(User, ct);
+        if (instituteId is null) return Forbid();
+
+        var snapshot = await _dashboard.GetInstituteSnapshotAsync(instituteId.Value, ct);
+        return Json(ToChartJson(snapshot.WeeklyActivity));
+    }
+
+    /// <summary>Per-subject average + pass-rate feed for published results.</summary>
+    [HttpGet]
+    public async Task<IActionResult> SubjectPerformanceData(CancellationToken ct)
+    {
+        var instituteId = await _scope.GetCurrentInstituteIdAsync(User, ct);
+        if (instituteId is null) return Forbid();
+
+        var snapshot = await _dashboard.GetInstituteSnapshotAsync(instituteId.Value, ct);
+        return Json(ToChartJson(snapshot.SubjectPerformance));
+    }
+
+    private static object ToChartJson(ChartFeed feed) => new
+    {
+        labels = feed.Labels,
+        datasets = feed.Series
+            .Select(s => new { label = s.Label, data = s.Data })
+            .ToArray()
+    };
 }

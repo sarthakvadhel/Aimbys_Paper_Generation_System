@@ -1,4 +1,5 @@
 using Aimbys.Application.Analytics;
+using Aimbys.Application.Dashboard;
 using Aimbys.Application.Papers;
 using Aimbys.Application.Blueprints;
 using Aimbys.Application.OrgTree;
@@ -32,6 +33,7 @@ using Aimbys.Infrastructure.Authorization;
 using Aimbys.Infrastructure.Broadcasts;
 using Aimbys.Infrastructure.Bulk;
 using Aimbys.Infrastructure.Configuration;
+using Aimbys.Infrastructure.Dashboard;
 using Aimbys.Application.Subscriptions;
 using Aimbys.Infrastructure.Subscriptions;
 using Aimbys.Infrastructure.DocumentRendering;
@@ -271,6 +273,12 @@ public static class DependencyInjection
 
         // ----- Analytics (Chunk 30) -------------------------------------
         services.AddScoped<IAnalyticsAggregationService, AnalyticsAggregationService>();
+
+        // ----- Dashboard aggregation (Slice A) --------------------------
+        // Single read-only service consumed by the four role HomeControllers.
+        // All queries use AsNoTracking; tenancy is the caller's responsibility
+        // (resolved via IInstituteScope before this service is invoked).
+        services.AddScoped<IDashboardService, DashboardService>();
 
         // ----- Paper assembly (Chunk 22) --------------------------------
         services.AddScoped<IPaperValidationService, PaperValidationService>();

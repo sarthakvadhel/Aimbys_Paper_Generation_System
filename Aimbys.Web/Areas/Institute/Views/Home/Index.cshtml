@@ -1,24 +1,38 @@
+@using Aimbys.Application.Dashboard
 @using Aimbys.Web.Models.UI
 @using Aimbys.Web.ViewComponents
+@model InstituteDashboardSnapshot
 @{
     ViewData["Title"] = "Dashboard";
 
-    var teachers = new DataTableModel(
+    string FormatRelative(DateTime utc)
+    {
+        var span = DateTime.UtcNow - utc;
+        if (span.TotalSeconds < 60)   return "just now";
+        if (span.TotalMinutes < 60)   return $"{(int)span.TotalMinutes}m ago";
+        if (span.TotalHours   < 24)   return $"{(int)span.TotalHours}h ago";
+        if (span.TotalDays    < 7)    return $"{(int)span.TotalDays}d ago";
+        return utc.ToString("dd MMM yyyy");
+    }
+
+    var contributors = new DataTableModel(
         Caption: "Top contributors",
         Columns: new[]
         {
             new DataTableColumn("Teacher"),
             new DataTableColumn("Subject"),
             new DataTableColumn("Papers", DataTableAlign.End),
-            new DataTableColumn("Rating", DataTableAlign.End)
+            new DataTableColumn("Approved %", DataTableAlign.End)
         },
-        Rows: new[]
-        {
-            Row("Mr. Rajiv Kumar",  "Mathematics",     "84", "4.8"),
-            Row("Mrs. Priya Nair",  "Physics",         "62", "4.6"),
-            Row("Dr. Sunita Roy",   "Chemistry",       "71", "4.9"),
-            Row("Mr. Arun Mehta",   "Computer Sci.",   "48", "4.5")
-        });
+        Rows: Model.TopContributors
+            .Select(c => new DataTableRow(new[]
+            {
+                new DataTableCell(c.TeacherName),
+                new DataTableCell(c.Subject),
+                new DataTableCell(c.PapersAuthored.ToString("N0")),
+                new DataTableCell($"{c.ApprovedPercentage}%")
+            }))
+            .ToList());
 
     var alerts = new DataTableModel(
         Caption: "Recent alerts",
@@ -28,33 +42,20 @@
             new DataTableColumn("Message"),
             new DataTableColumn("When", DataTableAlign.End)
         },
-        Rows: new[]
-        {
-            AlertRow("warning",  "Paper #P-2024-0841 awaiting approval since 48h",                    "2h ago"),
-            AlertRow("info",     "Exam Calendar updated: Mathematics XII on 22 May",                   "4h ago"),
-            AlertRow("critical", "Evaluation Engine degraded — results may be delayed",               "6h ago"),
-            AlertRow("success",  "Biology XI results published — 310 students",                       "1d ago")
-        });
-}
-
-@functions {
-    DataTableRow Row(params string[] cells) =>
-        new(cells.Select(c => new DataTableCell(c)).ToArray());
-
-    DataTableRow AlertRow(string severity, string message, string when) =>
-        new(new[]
-        {
-            new DataTableCell(Aimbys.Web.Models.UI.StatusBadge.Render(severity), IsHtml: true),
-            new DataTableCell(message),
-            new DataTableCell(when)
-        });
+        Rows: Model.RecentAlerts
+            .Select(a => new DataTableRow(new[]
+            {
+                new DataTableCell(StatusBadge.Render(a.Severity), IsHtml: true),
+                new DataTableCell(a.Message),
+                new DataTableCell(FormatRelative(a.OccurredAtUtc))
+            }))
+            .ToList());
 }
 
 @*
-    Institute dashboard. Mirrors `InstituteDashboard.tsx`: 4 KPI tiles,
-    weekly activity area chart, alert feed, subject-performance bars,
-    top-contributors table. Real numbers replace the seed data when
-    the institute aggregate ships.
+    Institute dashboard. Live aggregates flow from
+    IDashboardService.GetInstituteSnapshotAsync; nothing on this page is
+    hardcoded. Tenancy is enforced by the controller via IInstituteScope.
 *@
 
 <div class="container-fluid py-4 px-3 px-md-4">
@@ -67,16 +68,56 @@
 
     <div class="row g-3 mb-4">
         <div class="col-6 col-xl-3">
-            @await Component.InvokeAsync("KpiCard", new { label = "Total Students",   value = "28,400", sub = "+840 this month",   trend = KpiTrend.Up, iconKey = "people",            accentHex = "#1d4ed8" })
+            @await Component.InvokeAsync("KpiCard", new
+            {
+                label = "Total Students",
+                value = Model.TotalStudents.ToString("N0"),
+                sub = Model.StudentsAddedThisMonth > 0
+                    ? $"+{Model.StudentsAddedThisMonth:N0} this month"
+                    : "no new students this month",
+                trend = Model.StudentsAddedThisMonth > 0 ? KpiTrend.Up : KpiTrend.None,
+                iconKey = "people",
+                accentHex = "#1d4ed8"
+            })
         </div>
         <div class="col-6 col-xl-3">
-            @await Component.InvokeAsync("KpiCard", new { label = "Papers Generated", value = "6,820",  sub = "+124 this month",   trend = KpiTrend.Up, iconKey = "file-earmark-text", accentHex = "#0369a1" })
+            @await Component.InvokeAsync("KpiCard", new
+            {
+                label = "Papers Generated",
+                value = Model.PapersGenerated.ToString("N0"),
+                sub = Model.PapersGeneratedThisMonth > 0
+                    ? $"+{Model.PapersGeneratedThisMonth:N0} this month"
+                    : "no papers generated this month",
+                trend = Model.PapersGeneratedThisMonth > 0 ? KpiTrend.Up : KpiTrend.None,
+                iconKey = "file-earmark-text",
+                accentHex = "#0369a1"
+            })
         </div>
         <div class="col-6 col-xl-3">
-            @await Component.InvokeAsync("KpiCard", new { label = "Question Bank",    value = "48,240", sub = "+1,820 this month", trend = KpiTrend.Up, iconKey = "book",              accentHex = "#7c3aed" })
+            @await Component.InvokeAsync("KpiCard", new
+            {
+                label = "Question Bank",
+                value = Model.QuestionBankSize.ToString("N0"),
+                sub = Model.QuestionsAddedThisMonth > 0
+                    ? $"+{Model.QuestionsAddedThisMonth:N0} this month"
+                    : "no questions added this month",
+                trend = Model.QuestionsAddedThisMonth > 0 ? KpiTrend.Up : KpiTrend.None,
+                iconKey = "book",
+                accentHex = "#7c3aed"
+            })
         </div>
         <div class="col-6 col-xl-3">
-            @await Component.InvokeAsync("KpiCard", new { label = "Exams Scheduled",  value = "18",     sub = "4 this week",       trend = KpiTrend.Up, iconKey = "calendar",          accentHex = "#15803d" })
+            @await Component.InvokeAsync("KpiCard", new
+            {
+                label = "Exams Scheduled",
+                value = Model.ExamsScheduledOpen.ToString("N0"),
+                sub = Model.ExamsScheduledThisWeek > 0
+                    ? $"{Model.ExamsScheduledThisWeek:N0} this week"
+                    : "none scheduled this week",
+                trend = Model.ExamsScheduledThisWeek > 0 ? KpiTrend.Up : KpiTrend.None,
+                iconKey = "calendar",
+                accentHex = "#15803d"
+            })
         </div>
     </div>
 
@@ -85,9 +126,9 @@
             @await Component.InvokeAsync("ChartCard", new
             {
                 title = "Weekly Activity",
-                subtitle = "Papers and exams across the past week",
+                subtitle = "Papers and exams across the past 7 days",
                 dataUrl = Url.Action("WeeklyActivityData", "Home", new { area = "Institute" }),
-                chartType = "area",
+                chartType = "line",
                 height = 240
             })
         </div>
@@ -97,7 +138,17 @@
                     <h2 class="h6 fw-semibold mb-0">Recent Alerts</h2>
                     <p class="text-secondary small mb-0 mt-1">Workflow + system events</p>
                 </header>
-                <partial name="_DataTable" model="alerts" />
+                @if (Model.RecentAlerts.Count == 0)
+                {
+                    <div class="text-center text-secondary py-4">
+                        <div class="mb-2" style="font-size: 1.4rem;">&#128276;</div>
+                        <div class="small">No alerts in the last few days.</div>
+                    </div>
+                }
+                else
+                {
+                    <partial name="_DataTable" model="alerts" />
+                }
             </article>
         </div>
     </div>
@@ -107,7 +158,7 @@
             @await Component.InvokeAsync("ChartCard", new
             {
                 title = "Subject Performance",
-                subtitle = "Average score and pass rate per subject",
+                subtitle = "Average score and pass rate per subject (published results)",
                 dataUrl = Url.Action("SubjectPerformanceData", "Home", new { area = "Institute" }),
                 chartType = "bar",
                 height = 260
@@ -119,7 +170,18 @@
                     <h2 class="h6 fw-semibold mb-0">Top Contributors</h2>
                     <p class="text-secondary small mb-0 mt-1">Teachers ranked by paper output</p>
                 </header>
-                <partial name="_DataTable" model="teachers" />
+                @if (Model.TopContributors.Count == 0)
+                {
+                    <div class="text-center text-secondary py-4">
+                        <div class="mb-2" style="font-size: 1.4rem;">&#128104;&#8205;&#127979;</div>
+                        <div class="fw-semibold mb-1">No papers authored yet</div>
+                        <div class="small">Once teachers begin authoring papers they'll appear here.</div>
+                    </div>
+                }
+                else
+                {
+                    <partial name="_DataTable" model="contributors" />
+                }
             </article>
         </div>
     </div>

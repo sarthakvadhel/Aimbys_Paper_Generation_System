@@ -1,7 +1,19 @@
+@using Aimbys.Application.Dashboard
 @using Aimbys.Web.Models.UI
 @using Aimbys.Web.ViewComponents
+@model TeacherDashboardSnapshot
 @{
     ViewData["Title"] = "Dashboard";
+
+    string FormatRelative(DateTime utc)
+    {
+        var span = DateTime.UtcNow - utc;
+        if (span.TotalSeconds < 60)   return "just now";
+        if (span.TotalMinutes < 60)   return $"{(int)span.TotalMinutes}m ago";
+        if (span.TotalHours   < 24)   return $"{(int)span.TotalHours}h ago";
+        if (span.TotalDays    < 7)    return $"{(int)span.TotalDays}d ago";
+        return utc.ToString("dd MMM yyyy");
+    }
 
     var recentPapers = new DataTableModel(
         Caption: "Recent papers",
@@ -14,13 +26,17 @@
             new DataTableColumn("Qs", DataTableAlign.End),
             new DataTableColumn("Marks", DataTableAlign.End)
         },
-        Rows: new[]
-        {
-            PaperRow("P-2024-0841", "Mathematics XII — Unit Test 3",            "2026-05-20", "approved", "30", "80"),
-            PaperRow("P-2024-0832", "Mathematics XI — Trigonometry Mid-term",   "2026-05-18", "pending",  "40", "100"),
-            PaperRow("P-2024-0820", "Mathematics X — Algebra Chapter Test",     "2026-05-15", "approved", "25", "60"),
-            PaperRow("P-2024-0811", "Mathematics XII — Calculus Final Exam",    "2026-05-10", "draft",    "50", "120")
-        });
+        Rows: Model.RecentPapers
+            .Select(p => new DataTableRow(new[]
+            {
+                new DataTableCell(p.DisplayId),
+                new DataTableCell(p.Title),
+                new DataTableCell(p.CreatedAtUtc.ToString("yyyy-MM-dd")),
+                new DataTableCell(StatusBadge.Render(p.Status), IsHtml: true),
+                new DataTableCell(p.Questions.ToString("N0")),
+                new DataTableCell(p.Marks.ToString("N0"))
+            }))
+            .ToList());
 
     var pendingEvals = new DataTableModel(
         Caption: "Pending evaluations",
@@ -32,34 +48,22 @@
             new DataTableColumn("Type"),
             new DataTableColumn("Qs", DataTableAlign.End)
         },
-        Rows: new[]
-        {
-            Row("Riya Patel",   "Math XII Unit Test 3",      "2026-05-21 10:00", "Descriptive", "3"),
-            Row("Arjun Rao",    "Math XII Unit Test 3",      "2026-05-21 10:05", "Descriptive", "3"),
-            Row("Meera Joshi",  "Math XI Trigonometry",      "2026-05-20 14:30", "Descriptive", "4")
-        });
-}
-
-@functions {
-    DataTableRow Row(params string[] cells) =>
-        new(cells.Select(c => new DataTableCell(c)).ToArray());
-
-    DataTableRow PaperRow(string id, string title, string created, string status, string qs, string marks) =>
-        new(new[]
-        {
-            new DataTableCell(id),
-            new DataTableCell(title),
-            new DataTableCell(created),
-            new DataTableCell(Aimbys.Web.Models.UI.StatusBadge.Render(status), IsHtml: true),
-            new DataTableCell(qs),
-            new DataTableCell(marks)
-        });
+        Rows: Model.PendingEvaluations
+            .Select(e => new DataTableRow(new[]
+            {
+                new DataTableCell(e.StudentName),
+                new DataTableCell(e.ExamTitle),
+                new DataTableCell(FormatRelative(e.SubmittedAtUtc)),
+                new DataTableCell(e.AnswerType),
+                new DataTableCell(e.QuestionCount.ToString("N0"))
+            }))
+            .ToList());
 }
 
 @*
-    Teacher dashboard. Mirrors `TeacherDashboard.tsx`: 4 KPI tiles,
-    class-avg bar chart, pending-evaluations table, recent-papers
-    table. Wires through to the Chunk 16 view components.
+    Teacher dashboard. Live aggregates flow from
+    IDashboardService.GetTeacherSnapshotAsync; numbers reflect this
+    teacher's own papers, evaluations and class results only.
 *@
 
 <div class="container-fluid py-4 px-3 px-md-4">
@@ -71,16 +75,49 @@
 
     <div class="row g-3 mb-4">
         <div class="col-6 col-xl-3">
-            @await Component.InvokeAsync("KpiCard", new { label = "Papers Created",       value = "84",    sub = "This year",            iconKey = "file-earmark-text", accentHex = "#0369a1" })
+            @await Component.InvokeAsync("KpiCard", new
+            {
+                label = "Papers Created",
+                value = Model.PapersCreatedThisYear.ToString("N0"),
+                sub = $"This year ({DateTime.UtcNow.Year})",
+                iconKey = "file-earmark-text",
+                accentHex = "#0369a1"
+            })
         </div>
         <div class="col-6 col-xl-3">
-            @await Component.InvokeAsync("KpiCard", new { label = "Pending Approval",     value = "3",     sub = "Awaiting review",      iconKey = "activity",          accentHex = "#d97706" })
+            @await Component.InvokeAsync("KpiCard", new
+            {
+                label = "Pending Approval",
+                value = Model.PapersPendingApproval.ToString("N0"),
+                sub = Model.PapersPendingApproval == 0 ? "all caught up" : "awaiting review",
+                iconKey = "activity",
+                accentHex = "#d97706"
+            })
         </div>
         <div class="col-6 col-xl-3">
-            @await Component.InvokeAsync("KpiCard", new { label = "Pending Evaluations",  value = "14",    sub = "Descriptive answers",  iconKey = "pen",               accentHex = "#dc2626" })
+            @await Component.InvokeAsync("KpiCard", new
+            {
+                label = "Pending Evaluations",
+                value = Model.PendingEvaluationsCount.ToString("N0"),
+                sub = Model.PendingEvaluationsCount == 0 ? "no submissions to grade" : "submissions to grade",
+                iconKey = "pen",
+                accentHex = "#dc2626"
+            })
         </div>
         <div class="col-6 col-xl-3">
-            @await Component.InvokeAsync("KpiCard", new { label = "Avg Class Score",      value = "71.2%", sub = "↑ 2.8% vs last term",  trend = KpiTrend.Up, iconKey = "graph-up", accentHex = "#15803d" })
+            @await Component.InvokeAsync("KpiCard", new
+            {
+                label = "Avg Class Score",
+                value = Model.AverageClassScorePercent > 0
+                    ? $"{Model.AverageClassScorePercent.ToString("F1")}%"
+                    : "—",
+                sub = Model.AverageClassScorePercent > 0
+                    ? "across published results"
+                    : "no published results yet",
+                trend = KpiTrend.None,
+                iconKey = "graph-up",
+                accentHex = "#15803d"
+            })
         </div>
     </div>
 
@@ -89,7 +126,7 @@
             @await Component.InvokeAsync("ChartCard", new
             {
                 title = "Class Average Scores",
-                subtitle = "Per-class average across recent assessments",
+                subtitle = "Per-class average across exams you authored",
                 dataUrl = Url.Action("ClassAvgData", "Home", new { area = "Teacher" }),
                 chartType = "bar",
                 height = 240
@@ -100,21 +137,59 @@
                 <header class="mb-3 d-flex flex-wrap align-items-center justify-content-between gap-2">
                     <div>
                         <h2 class="h6 fw-semibold mb-0">Pending Evaluations</h2>
-                        <p class="text-secondary small mb-0 mt-1">Descriptive answers awaiting grading</p>
+                        <p class="text-secondary small mb-0 mt-1">Submissions awaiting your grading</p>
                     </div>
-                    <span class="badge text-bg-primary">@pendingEvals.Rows.Count</span>
+                    <span class="badge text-bg-primary">@Model.PendingEvaluationsCount</span>
                 </header>
-                <partial name="_DataTable" model="pendingEvals" />
+                @if (Model.PendingEvaluations.Count == 0)
+                {
+                    <div class="text-center text-secondary py-4">
+                        <div class="mb-2" style="font-size: 1.6rem;">&#9989;</div>
+                        <div class="fw-semibold mb-1">No evaluations assigned</div>
+                        <div class="small">When an institute admin assigns submissions to you, they'll appear here.</div>
+                    </div>
+                }
+                else
+                {
+                    <partial name="_DataTable" model="pendingEvals" />
+                    <div class="text-end mt-3">
+                        <a class="btn btn-sm btn-outline-primary"
+                           href="@Url.Action("Index", "Evaluation", new { area = "Teacher" })">
+                            Open evaluation desk &rarr;
+                        </a>
+                    </div>
+                }
             </article>
         </div>
     </div>
 
     <article class="aimbys-chart-card bg-body border rounded-3 p-3 p-md-4">
-        <header class="mb-3">
-            <h2 class="h6 fw-semibold mb-0">Recent Papers</h2>
-            <p class="text-secondary small mb-0 mt-1">Drafts, pending and approved</p>
+        <header class="mb-3 d-flex flex-wrap align-items-center justify-content-between gap-2">
+            <div>
+                <h2 class="h6 fw-semibold mb-0">Recent Papers</h2>
+                <p class="text-secondary small mb-0 mt-1">Drafts, pending and approved papers you authored</p>
+            </div>
+            <a class="btn btn-sm btn-outline-secondary"
+               href="@Url.Action("Index", "Papers", new { area = "Teacher" })">
+                All papers
+            </a>
         </header>
-        <partial name="_DataTable" model="recentPapers" />
+        @if (Model.RecentPapers.Count == 0)
+        {
+            <div class="text-center text-secondary py-5">
+                <div class="mb-2" style="font-size: 1.6rem;">&#128221;</div>
+                <div class="fw-semibold mb-1">No papers authored yet</div>
+                <div class="small mb-3">Start a new paper to see drafts and approvals here.</div>
+                <a class="btn btn-primary btn-sm"
+                   href="@Url.Action("Create", "Papers", new { area = "Teacher" })">
+                    Create a paper
+                </a>
+            </div>
+        }
+        else
+        {
+            <partial name="_DataTable" model="recentPapers" />
+        }
     </article>
 
 </div>
