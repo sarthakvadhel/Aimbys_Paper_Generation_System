@@ -18,9 +18,11 @@ using Microsoft.Extensions.Logging;
 namespace Aimbys.Infrastructure.Exams;
 
 /// <summary>
-/// Manages the runtime lifecycle of an exam attempt: start, save answers,
-/// flag questions, and submit. On submit, auto-evaluates objective questions
-/// immediately and routes manual questions into the evaluator workflow.
+/// Manages the runtime lifecycle of an exam attempt. Every mutating
+/// method that takes a <c>studentUserId</c> enforces ownership at the
+/// service boundary; <see cref="AutoSubmitAsync"/> is the system-only
+/// counterpart used by the auto-submit job and the suspicion-driven
+/// force-submit path.
 /// </summary>
 public sealed class ExamRuntimeService : IExamRuntimeService
 {
@@ -54,6 +56,10 @@ public sealed class ExamRuntimeService : IExamRuntimeService
         _events = events;
         _logger = logger;
     }
+
+    // =========================================================================
+    // Start
+    // =========================================================================
 
     public async Task<ExamAttemptResult> StartAttemptAsync(
         Guid examId, Guid studentProfileId, CancellationToken ct = default)
@@ -102,11 +108,16 @@ public sealed class ExamRuntimeService : IExamRuntimeService
 
         await _db.SaveChangesAsync(ct);
 
-        _logger.LogInformation("Attempt {AttemptId} started for student {StudentProfileId} on exam {ExamId}.",
+        _logger.LogInformation(
+            "Attempt {AttemptId} started for student {StudentProfileId} on exam {ExamId}.",
             attempt.Id, studentProfileId, examId);
 
         return new ExamAttemptResult(true, AttemptId: attempt.Id);
     }
+
+    // =========================================================================
+    // SaveAnswer / FlagQuestion (HTTP-owned)
+    // =========================================================================
 
     public async Task<SaveAnswerResult> SaveAnswerAsync(
         Guid attemptId, Guid questionId, string? answerJson, string studentUserId,
@@ -118,6 +129,12 @@ public sealed class ExamRuntimeService : IExamRuntimeService
 
         if (attempt?.Exam == null)
             return new SaveAnswerResult(false, "Attempt not found.");
+
+        // Ownership: tenant-/student-scoped at the service boundary so a
+        // hostile caller cannot save into another student's attempt by
+        // guessing GUIDs.
+        if (!OwnerMatches(attempt, studentUserId))
+            return new SaveAnswerResult(false, "forbidden");
 
         if (attempt.Status != AttemptStatus.InProgress)
             return new SaveAnswerResult(false, "Attempt is not in progress.");
@@ -134,11 +151,20 @@ public sealed class ExamRuntimeService : IExamRuntimeService
 
         if (answer == null)
         {
+            // Resolve the current question version so the answer is bound
+            // to the right version (the previous code reused questionId,
+            // which left answers pointing at a non-existent version).
+            var currentVersionId = await _db.QuestionVersions
+                .AsNoTracking()
+                .Where(v => v.QuestionId == questionId && v.IsCurrentVersion)
+                .Select(v => v.Id)
+                .FirstOrDefaultAsync(ct);
+
             answer = new ExamAttemptAnswer
             {
                 AttemptId = attemptId,
                 QuestionId = questionId,
-                QuestionVersionId = questionId,
+                QuestionVersionId = currentVersionId == Guid.Empty ? questionId : currentVersionId,
                 AnswerJson = answerJson,
                 LastSavedAtUtc = DateTime.UtcNow
             };
@@ -158,16 +184,28 @@ public sealed class ExamRuntimeService : IExamRuntimeService
         Guid attemptId, Guid questionId, bool flagged, string studentUserId,
         CancellationToken ct = default)
     {
+        var attempt = await _db.ExamAttempts
+            .FirstOrDefaultAsync(a => a.Id == attemptId, ct);
+
+        if (attempt is null || !OwnerMatches(attempt, studentUserId))
+            return false;
+
         var answer = await _db.ExamAttemptAnswers
             .FirstOrDefaultAsync(a => a.AttemptId == attemptId && a.QuestionId == questionId, ct);
 
         if (answer == null)
         {
+            var currentVersionId = await _db.QuestionVersions
+                .AsNoTracking()
+                .Where(v => v.QuestionId == questionId && v.IsCurrentVersion)
+                .Select(v => v.Id)
+                .FirstOrDefaultAsync(ct);
+
             answer = new ExamAttemptAnswer
             {
                 AttemptId = attemptId,
                 QuestionId = questionId,
-                QuestionVersionId = questionId,
+                QuestionVersionId = currentVersionId == Guid.Empty ? questionId : currentVersionId,
                 IsFlagged = flagged,
                 LastSavedAtUtc = DateTime.UtcNow
             };
@@ -182,19 +220,60 @@ public sealed class ExamRuntimeService : IExamRuntimeService
         return true;
     }
 
+    // =========================================================================
+    // Submit (HTTP-owned + system AutoSubmit share core)
+    // =========================================================================
+
     public async Task<SubmitResult> SubmitAsync(
         Guid attemptId, string studentUserId, CancellationToken ct = default)
     {
-        var attempt = await _db.ExamAttempts
+        var attempt = await LoadAttemptForSubmitAsync(attemptId, ct);
+        if (attempt is null)
+            return new SubmitResult(false, "Attempt not found.");
+
+        if (!OwnerMatches(attempt, studentUserId))
+            return new SubmitResult(false, "forbidden");
+
+        if (attempt.Status != AttemptStatus.InProgress)
+            return new SubmitResult(false, "Attempt is not in progress.");
+
+        return await CompleteSubmissionAsync(attempt, isAutoSubmit: false, ct);
+    }
+
+    public async Task<SubmitResult> AutoSubmitAsync(
+        Guid attemptId, CancellationToken ct = default)
+    {
+        var attempt = await LoadAttemptForSubmitAsync(attemptId, ct);
+        if (attempt is null)
+            return new SubmitResult(false, "Attempt not found.");
+
+        if (attempt.Status != AttemptStatus.InProgress)
+        {
+            // Idempotent: already submitted attempts return success so
+            // the background job can keep running without churn.
+            return new SubmitResult(true, TotalAutoScore: attempt.TotalAutoScore ?? 0);
+        }
+
+        return await CompleteSubmissionAsync(attempt, isAutoSubmit: true, ct);
+    }
+
+    private Task<ExamAttempt?> LoadAttemptForSubmitAsync(Guid attemptId, CancellationToken ct) =>
+        _db.ExamAttempts
             .Include(a => a.Exam)
             .Include(a => a.Answers)
             .FirstOrDefaultAsync(a => a.Id == attemptId, ct);
 
-        if (attempt?.Exam == null)
-            return new SubmitResult(false, "Attempt not found.");
-
-        if (attempt.Status != AttemptStatus.InProgress)
-            return new SubmitResult(false, "Attempt is not in progress.");
+    /// <summary>
+    /// Shared submit implementation. Auto-evaluates objective answers,
+    /// writes <see cref="FinalPublishedScore"/> rows, then either
+    /// publishes the attempt (auto-only papers) or routes manual
+    /// answers to the evaluation queue.
+    /// </summary>
+    private async Task<SubmitResult> CompleteSubmissionAsync(
+        ExamAttempt attempt, bool isAutoSubmit, CancellationToken ct)
+    {
+        if (attempt.Exam is null)
+            return new SubmitResult(false, "Exam not found.");
 
         // Load question types and version data for all answers in one query.
         var questionIds = attempt.Answers.Select(a => a.QuestionId).ToList();
@@ -216,6 +295,7 @@ public sealed class ExamRuntimeService : IExamRuntimeService
 
         attempt.Status = AttemptStatus.Submitted;
         attempt.SubmittedAtUtc = DateTime.UtcNow;
+        attempt.AutoSubmitted = isAutoSubmit;
 
         decimal totalAutoScore = 0m;
         decimal totalMaxScore = 0m;
@@ -267,6 +347,16 @@ public sealed class ExamRuntimeService : IExamRuntimeService
 
         _db.FinalPublishedScores.AddRange(finalPublishedScores);
 
+        // Record a Submitted-class event so the institute admin's exam
+        // timeline shows whether the student submitted manually or the
+        // system auto-submitted on timeout / suspicion.
+        _db.ExamEvents.Add(new ExamEvent
+        {
+            AttemptId = attempt.Id,
+            EventType = isAutoSubmit ? ExamEventType.AutoSubmitted : ExamEventType.ManualSubmitted,
+            OccurredAtUtc = DateTime.UtcNow
+        });
+
         // Persist the auto-evaluation work first; the publication path
         // re-reads FinalPublishedScores and the Result row.
         await _db.SaveChangesAsync(ct);
@@ -302,11 +392,24 @@ public sealed class ExamRuntimeService : IExamRuntimeService
         });
 
         _logger.LogInformation(
-            "Attempt {AttemptId} submitted. AutoScore={Score}, HasManual={HasManual}.",
-            attemptId, totalAutoScore, hasManualQuestions);
+            "Attempt {AttemptId} submitted (auto={IsAuto}). AutoScore={Score}, HasManual={HasManual}.",
+            attempt.Id, isAutoSubmit, totalAutoScore, hasManualQuestions);
 
         return new SubmitResult(true, TotalAutoScore: totalAutoScore);
     }
+
+    // =========================================================================
+    // Helpers
+    // =========================================================================
+
+    /// <summary>
+    /// Compares the attempt's owner with the caller-supplied user id.
+    /// Treats <c>null</c> / empty as a non-match so a hostile body cannot
+    /// pass an empty string and slip through.
+    /// </summary>
+    private static bool OwnerMatches(ExamAttempt attempt, string? studentUserId) =>
+        !string.IsNullOrEmpty(studentUserId)
+        && string.Equals(attempt.StudentUserId, studentUserId, StringComparison.Ordinal);
 
     // ----- auto-evaluation helpers ------------------------------------------
 

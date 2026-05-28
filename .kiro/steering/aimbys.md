@@ -75,6 +75,18 @@ Published → Archived`. Use the `PaperStatus` enum; never hardcode strings.
 - Never write to `AppDbContext` from a controller for cross-cutting concerns
   (audit, notifications, workflow state) — use the dedicated service.
 
+## Service-boundary ownership
+
+Mutating endpoints that take a student / actor id (e.g. `SaveAnswerAsync`,
+`FlagQuestionAsync`, `SubmitAsync`, `RecordEventAsync`, `RecordHeartbeatAsync`,
+`ReconnectAsync`) must compare the supplied id against the entity's owner and
+reject mismatches at the **service** boundary — not just the controller. The
+`ExamRuntimeService` and `ExamSecurityService` are the canonical examples
+(see `OwnerMatches(...)`).
+
+System / background callers go through dedicated methods (`AutoSubmitAsync`,
+etc.) that explicitly bypass ownership and stamp `AutoSubmitted = true`.
+
 ## Views
 
 - Bootstrap 5, no Tailwind, no client-side framework. Server-rendered Razor.

@@ -13,8 +13,10 @@ using Microsoft.EntityFrameworkCore;
 namespace Aimbys.Web.Areas.Student.Controllers;
 
 /// <summary>
-/// Student exam-taking surface: list exams, start attempts, take
-/// exam (fullscreen), autosave answers, flag, and submit.
+/// Student exam-taking surface: list exams, start attempts, take exam
+/// (fullscreen), autosave answers, flag, submit, plus the runtime-
+/// hardening endpoints (heartbeat / security event / reconnect) that
+/// the in-page JS exercises every few seconds.
 /// </summary>
 [Area("Student")]
 [Authorize(Roles = Roles.Student)]
@@ -22,12 +24,18 @@ public class ExamsController : Controller
 {
     private readonly AppDbContext _db;
     private readonly IExamRuntimeService _runtime;
+    private readonly IExamSecurityService _security;
     private readonly IFileStorageService _fileStorage;
 
-    public ExamsController(AppDbContext db, IExamRuntimeService runtime, IFileStorageService fileStorage)
+    public ExamsController(
+        AppDbContext db,
+        IExamRuntimeService runtime,
+        IExamSecurityService security,
+        IFileStorageService fileStorage)
     {
         _db = db;
         _runtime = runtime;
+        _security = security;
         _fileStorage = fileStorage;
     }
 
@@ -134,7 +142,15 @@ public class ExamsController : Controller
             remainingSeconds = Math.Max(0, (int)(deadline - DateTime.UtcNow).TotalSeconds);
         }
 
+        // Resolve the security profile for the exam so the in-page JS
+        // can honour fullscreen / paste / heartbeat-interval policy.
+        var securityProfile = await _db.Set<ExamSecurityProfile>()
+            .AsNoTracking()
+            .FirstOrDefaultAsync(p => p.ExamId == attempt.ExamId, ct)
+            ?? new ExamSecurityProfile { ExamId = attempt.ExamId };
+
         ViewBag.RemainingSeconds = remainingSeconds;
+        ViewBag.SecurityProfile = securityProfile;
         return View(attempt);
     }
 
@@ -154,23 +170,100 @@ public class ExamsController : Controller
         if (!result.Success && result.Error == "timer_expired")
             return Conflict(new { error = "timer_expired" });
 
+        if (!result.Success && result.Error == "forbidden")
+            return Forbid();
+
         if (!result.Success)
             return BadRequest(new { error = result.Error });
 
         return Ok(new { success = true });
     }
 
-    /// <summary>
-    /// POST /Student/Exams/Flag — toggle flag from JS.
-    /// Uses [IgnoreAntiforgeryToken] for same reason as SaveAnswer.
-    /// </summary>
+    /// <summary>POST /Student/Exams/Flag — toggle flag from JS.</summary>
     [HttpPost]
     [IgnoreAntiforgeryToken]
     public async Task<IActionResult> Flag([FromBody] FlagInput input, CancellationToken ct)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
-        await _runtime.FlagQuestionAsync(input.AttemptId, input.QuestionId, input.Flagged, userId, ct);
-        return Ok(new { success = true });
+        var ok = await _runtime.FlagQuestionAsync(input.AttemptId, input.QuestionId, input.Flagged, userId, ct);
+        return ok ? Ok(new { success = true }) : Forbid();
+    }
+
+    /// <summary>
+    /// POST /Student/Exams/Heartbeat — keepalive ping. Throttled
+    /// client-side to one beat per security-profile interval (default
+    /// 30 seconds); a partitioned-by-user rate-limit policy will be
+    /// added in a follow-up so the existing global <c>"heartbeat"</c>
+    /// limiter doesn't starve concurrent students.
+    /// Returns 204 on success.
+    /// </summary>
+    [HttpPost]
+    [IgnoreAntiforgeryToken]
+    public async Task<IActionResult> Heartbeat([FromBody] HeartbeatInput input, CancellationToken ct)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
+        var ok = await _security.RecordHeartbeatAsync(input.AttemptId, userId, ct);
+        return ok ? NoContent() : Forbid();
+    }
+
+    /// <summary>
+    /// POST /Student/Exams/Event — record a security event (tab blur,
+    /// fullscreen exit, paste attempt, etc.). The service applies its
+    /// own threshold logic and may auto-submit on critical breaches.
+    /// </summary>
+    [HttpPost]
+    [IgnoreAntiforgeryToken]
+    public async Task<IActionResult> Event([FromBody] SecurityEventInput input, CancellationToken ct)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
+
+        if (!Enum.TryParse<ExamEventType>(input.EventType, ignoreCase: true, out var parsedType))
+        {
+            return BadRequest(new { error = "unknown_event_type" });
+        }
+
+        var ok = await _security.RecordEventAsync(
+            input.AttemptId,
+            parsedType,
+            input.DetailsJson,
+            userId,
+            ct);
+
+        return ok ? Ok(new { success = true }) : Forbid();
+    }
+
+    /// <summary>
+    /// POST /Student/Exams/Reconnect — invoked by the in-page JS after a
+    /// tab return / page refresh. Refreshes the session row, records
+    /// ConnectionRestored (and ConnectionLost if the gap exceeded the
+    /// security profile's tolerance) and returns the server-authoritative
+    /// remaining seconds so the client cannot extend its timer by reloading.
+    /// </summary>
+    [HttpPost]
+    [IgnoreAntiforgeryToken]
+    public async Task<IActionResult> Reconnect([FromBody] ReconnectInput input, CancellationToken ct)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
+        var ip = HttpContext.Connection.RemoteIpAddress?.ToString();
+        var ua = Request.Headers.UserAgent.ToString();
+
+        var info = await _security.ReconnectAsync(
+            input.AttemptId,
+            userId,
+            input.DeviceFingerprint,
+            ua,
+            ip,
+            ct);
+
+        if (info is null) return Forbid();
+
+        return Ok(new
+        {
+            success = true,
+            remainingSeconds = info.RemainingSeconds,
+            sessionWasNew = info.SessionWasNew,
+            wasInactive = info.WasInactive
+        });
     }
 
     /// <summary>POST /Student/Exams/Submit — submits the attempt.</summary>
@@ -183,6 +276,7 @@ public class ExamsController : Controller
 
         if (!result.Success)
         {
+            if (result.Error == "forbidden") return Forbid();
             TempData["Error"] = result.Error;
             return RedirectToAction(nameof(Take), new { attemptId });
         }
@@ -287,4 +381,26 @@ public sealed class FlagInput
     public Guid AttemptId { get; set; }
     public Guid QuestionId { get; set; }
     public bool Flagged { get; set; }
+}
+
+public sealed class HeartbeatInput
+{
+    public Guid AttemptId { get; set; }
+}
+
+public sealed class SecurityEventInput
+{
+    public Guid AttemptId { get; set; }
+
+    /// <summary>Name of an <c>ExamEventType</c> enum value (case-insensitive).</summary>
+    public string EventType { get; set; } = string.Empty;
+
+    /// <summary>Optional structured details (e.g. blocked-keys list, fingerprint hash).</summary>
+    public string? DetailsJson { get; set; }
+}
+
+public sealed class ReconnectInput
+{
+    public Guid AttemptId { get; set; }
+    public string? DeviceFingerprint { get; set; }
 }

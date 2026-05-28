@@ -1,4 +1,5 @@
 @model Aimbys.Domain.Entities.Exams.ExamAttempt
+@using Aimbys.Domain.Entities.Exams
 @using Aimbys.Domain.Entities.Questions
 @{
     ViewData["Title"] = Model.Exam?.Title ?? "Exam";
@@ -7,18 +8,20 @@
     var qVersions = ViewBag.QuestionVersions as Dictionary<Guid, QuestionVersion>
                     ?? new Dictionary<Guid, QuestionVersion>();
     var answers = Model.Answers.OrderBy(a => a.QuestionId).ToList();
+    var profile = ViewBag.SecurityProfile as ExamSecurityProfile ?? new ExamSecurityProfile();
 }
 
-<div class="container-fluid py-3">
+<div class="container-fluid py-3" id="examShell">
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h5 class="mb-0">@Model.Exam?.Title</h5>
         <div class="d-flex align-items-center gap-3">
+            <span class="badge bg-secondary fs-6" id="connBadge" aria-live="polite" title="Network status">●&nbsp;Online</span>
             <span class="badge bg-danger fs-6" id="timer" aria-live="polite">--:--</span>
             <form asp-action="Submit" method="post" class="d-inline" id="submitForm">
                 @Html.AntiForgeryToken()
                 <input type="hidden" name="attemptId" value="@Model.Id" />
-                <button type="submit" class="btn btn-primary btn-sm"
-                        onclick="return confirm('Submit exam? You cannot change answers after submission.')">
+                <button type="submit" class="btn btn-primary btn-sm" id="submitBtn"
+                        onclick="return window.aimbysExam.confirmSubmit();">
                     Submit Exam
                 </button>
             </form>
@@ -29,7 +32,20 @@
         Duration: @(Model.Exam?.DurationMinutes ?? 0) min &nbsp;|&nbsp;
         Questions: @answers.Count &nbsp;|&nbsp;
         Flagged: <span id="flagCount">@answers.Count(a => a.IsFlagged)</span>
+        @if (profile.RequireFullscreen)
+        {
+            <span class="ms-2 text-warning">&middot; Fullscreen required</span>
+        }
+        @if (profile.BlockCopyPaste)
+        {
+            <span class="ms-2 text-warning">&middot; Copy/paste disabled</span>
+        }
     </p>
+
+    <div id="warningBanner"
+         class="alert alert-warning d-none mb-3"
+         role="alert"
+         aria-live="polite"></div>
 
     @if (!answers.Any())
     {
@@ -112,64 +128,346 @@
 
 @section Scripts {
 <script>
-(function () {
-    // Timer
-    let remaining = @remainingSeconds;
-    const timerEl = document.getElementById('timer');
+//
+// Aimbys Exam Runtime — Slice D
+//
+// Server is the source of truth: timer, ownership, suspicion thresholds.
+// Client responsibilities: render the timer, autosave, beat the heartbeat,
+// post security events, and not silently swallow network failures.
+//
+window.aimbysExam = (function () {
+    'use strict';
+
+    var attemptId = '@Model.Id';
+    var endpoints = {
+        save:        '@Url.Action("SaveAnswer", "Exams", new { area = "Student" })',
+        flag:        '@Url.Action("Flag",       "Exams", new { area = "Student" })',
+        heartbeat:   '@Url.Action("Heartbeat",  "Exams", new { area = "Student" })',
+        evt:         '@Url.Action("Event",      "Exams", new { area = "Student" })',
+        reconnect:   '@Url.Action("Reconnect",  "Exams", new { area = "Student" })'
+    };
+
+    var policy = {
+        requireFullscreen:  @profile.RequireFullscreen.ToString().ToLowerInvariant(),
+        detectTabSwitch:    @profile.DetectTabSwitch.ToString().ToLowerInvariant(),
+        blockCopyPaste:     @profile.BlockCopyPaste.ToString().ToLowerInvariant(),
+        blockShortcuts:     @profile.BlockKeyboardShortcuts.ToString().ToLowerInvariant(),
+        heartbeatSeconds:   @(profile.HeartbeatIntervalSeconds <= 0 ? 30 : profile.HeartbeatIntervalSeconds)
+    };
+
+    var remaining = @remainingSeconds;
+    var submitted = false;
+    var timerEl   = document.getElementById('timer');
+    var connEl    = document.getElementById('connBadge');
+    var bannerEl  = document.getElementById('warningBanner');
+    var submitForm = document.getElementById('submitForm');
+
+    // Pending-save buffer keyed by questionId; lets autosave coalesce
+    // bursts and retry on transient network failure.
+    var pendingSaves = {};
+    var saveDebounce = {};
+
+    // ----- Helpers ------------------------------------------------------
+
+    function showBanner(text, level) {
+        if (!bannerEl) return;
+        bannerEl.className = 'alert alert-' + (level || 'warning') + ' mb-3';
+        bannerEl.textContent = text;
+        bannerEl.classList.remove('d-none');
+    }
+
+    function hideBanner() {
+        if (bannerEl) bannerEl.classList.add('d-none');
+    }
+
+    function setConn(state) {
+        if (!connEl) return;
+        if (state === 'online') {
+            connEl.className = 'badge bg-secondary fs-6';
+            connEl.textContent = '● Online';
+        } else if (state === 'reconnecting') {
+            connEl.className = 'badge bg-warning fs-6';
+            connEl.textContent = '↻ Reconnecting';
+        } else {
+            connEl.className = 'badge bg-danger fs-6';
+            connEl.textContent = '⚠ Offline';
+        }
+    }
+
+    function postJson(url, body) {
+        return fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+            credentials: 'same-origin'
+        });
+    }
+
+    // Quick non-cryptographic browser fingerprint for the session row.
+    function fingerprint() {
+        try {
+            return [
+                navigator.userAgent || '',
+                navigator.language  || '',
+                screen.width + 'x' + screen.height,
+                new Date().getTimezoneOffset()
+            ].join('|');
+        } catch (e) { return 'unknown'; }
+    }
+
+    // ----- Timer (server-authoritative) ---------------------------------
+
     function tick() {
+        if (submitted) return;
         if (remaining <= 0) {
             timerEl.textContent = '00:00';
-            document.getElementById('submitForm').submit();
+            forceSubmit('timer-expired');
             return;
         }
-        const m = Math.floor(remaining / 60), s = remaining % 60;
-        timerEl.textContent = String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+        var m = Math.floor(remaining / 60), s = remaining % 60;
+        timerEl.textContent = String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
         remaining--;
         setTimeout(tick, 1000);
     }
-    tick();
 
-    // Save answer helper
-    function saveAnswer(attemptId, questionId, answerJson) {
-        fetch('@Url.Action("SaveAnswer","Exams",new{area="Student"})', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ attemptId, questionId, answerJson })
-        }).then(r => {
+    function forceSubmit(reason) {
+        if (submitted) return;
+        submitted = true;
+        showBanner('Submitting your exam (' + reason + ')...', 'info');
+        try { submitForm.submit(); } catch (e) { window.location.reload(); }
+    }
+
+    function confirmSubmit() {
+        if (submitted) return false;
+        var ok = confirm('Submit exam? You cannot change answers after submission.');
+        if (ok) submitted = true;
+        return ok;
+    }
+
+    // ----- Autosave with retry ------------------------------------------
+
+    function saveAnswer(questionId, answerJson) {
+        pendingSaves[questionId] = answerJson;
+        return postJson(endpoints.save, {
+            attemptId: attemptId,
+            questionId: questionId,
+            answerJson: answerJson
+        }).then(function (r) {
             if (r.status === 409) {
-                alert('Time expired! Submitting now.');
-                document.getElementById('submitForm').submit();
+                // Server says the timer has expired.
+                forceSubmit('timer-expired');
+                return;
             }
+            if (r.status === 403) {
+                showBanner('You no longer have access to this attempt.', 'danger');
+                return;
+            }
+            if (!r.ok) throw new Error('save failed: ' + r.status);
+            // Success: clear from pending
+            if (pendingSaves[questionId] === answerJson) {
+                delete pendingSaves[questionId];
+            }
+            hideBanner();
+        }).catch(function () {
+            // Transient: retry once after 5s; the value stays in
+            // pendingSaves so the next save call resends if needed.
+            setConn('offline');
+            setTimeout(function () {
+                if (pendingSaves[questionId] === answerJson) {
+                    saveAnswer(questionId, answerJson);
+                }
+            }, 5000);
         });
     }
 
-    // Descriptive autosave
-    document.querySelectorAll('.answer-input').forEach(el => {
-        let t;
-        el.addEventListener('input', () => { clearTimeout(t); t = setTimeout(() => saveAnswer(el.dataset.attemptId, el.dataset.questionId, el.value), 2000); });
-        el.addEventListener('blur',  () => { clearTimeout(t); saveAnswer(el.dataset.attemptId, el.dataset.questionId, el.value); });
-    });
+    function debouncedSave(questionId, value) {
+        clearTimeout(saveDebounce[questionId]);
+        saveDebounce[questionId] = setTimeout(function () {
+            saveAnswer(questionId, value);
+        }, 1500);
+    }
 
-    // MCQ save on click
-    document.querySelectorAll('.mcq-option').forEach(el => {
-        el.addEventListener('change', () => saveAnswer(el.dataset.attemptId, el.dataset.questionId, el.value));
-    });
+    // ----- Heartbeat ----------------------------------------------------
 
-    // Flag toggle
-    document.querySelectorAll('.flag-btn').forEach(btn => {
-        btn.addEventListener('click', function () {
-            const flagged = this.dataset.flagged === 'true';
-            fetch('@Url.Action("Flag","Exams",new{area="Student"})', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ attemptId: this.dataset.attemptId, questionId: this.dataset.questionId, flagged: !flagged })
-            }).then(() => {
-                this.dataset.flagged = (!flagged).toString();
-                this.textContent = !flagged ? '⚑ Flagged' : '⚐ Flag';
-                this.className = 'btn btn-sm ' + (!flagged ? 'btn-warning' : 'btn-outline-warning') + ' flag-btn';
+    function heartbeat() {
+        if (submitted) return;
+        postJson(endpoints.heartbeat, { attemptId: attemptId })
+            .then(function (r) {
+                if (r.ok || r.status === 204) {
+                    setConn('online');
+                } else {
+                    setConn('offline');
+                }
+            })
+            .catch(function () { setConn('offline'); });
+    }
+
+    // ----- Security events ---------------------------------------------
+
+    function recordEvent(eventType, detailsJson) {
+        if (submitted) return;
+        postJson(endpoints.evt, {
+            attemptId: attemptId,
+            eventType: eventType,
+            detailsJson: detailsJson || null
+        }).catch(function () { /* swallow; not safety-critical client-side */ });
+    }
+
+    // ----- Reconnect ----------------------------------------------------
+
+    function reconnect() {
+        if (submitted) return;
+        setConn('reconnecting');
+        postJson(endpoints.reconnect, {
+            attemptId: attemptId,
+            deviceFingerprint: fingerprint()
+        }).then(function (r) { return r.ok ? r.json() : null; })
+          .then(function (data) {
+              if (data && typeof data.remainingSeconds === 'number') {
+                  // Trust the server-recomputed remaining seconds — never
+                  // let a reload extend the timer.
+                  remaining = data.remainingSeconds;
+                  setConn('online');
+                  if (data.wasInactive) {
+                      showBanner('Connection restored. Your exam is active again.', 'info');
+                      setTimeout(hideBanner, 4000);
+                  }
+              } else {
+                  setConn('offline');
+              }
+          })
+          .catch(function () { setConn('offline'); });
+    }
+
+    // ----- Wire up ------------------------------------------------------
+
+    function bindAnswers() {
+        document.querySelectorAll('.answer-input').forEach(function (el) {
+            el.addEventListener('input', function () {
+                debouncedSave(el.dataset.questionId, el.value);
+            });
+            el.addEventListener('blur', function () {
+                clearTimeout(saveDebounce[el.dataset.questionId]);
+                saveAnswer(el.dataset.questionId, el.value);
             });
         });
-    });
+
+        document.querySelectorAll('.mcq-option').forEach(function (el) {
+            el.addEventListener('change', function () {
+                saveAnswer(el.dataset.questionId, el.value);
+            });
+        });
+
+        document.querySelectorAll('.flag-btn').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var flagged = btn.dataset.flagged === 'true';
+                postJson(endpoints.flag, {
+                    attemptId: btn.dataset.attemptId,
+                    questionId: btn.dataset.questionId,
+                    flagged: !flagged
+                }).then(function () {
+                    btn.dataset.flagged = (!flagged).toString();
+                    btn.textContent = !flagged ? '⚑ Flagged' : '⚐ Flag';
+                    btn.className = 'btn btn-sm ' + (!flagged ? 'btn-warning' : 'btn-outline-warning') + ' flag-btn';
+                });
+            });
+        });
+    }
+
+    function bindSecurity() {
+        // Tab switch / window blur detection
+        if (policy.detectTabSwitch) {
+            document.addEventListener('visibilitychange', function () {
+                if (document.visibilityState === 'hidden') {
+                    recordEvent('TabBlur');
+                } else {
+                    recordEvent('TabFocus');
+                    reconnect();
+                }
+            });
+            window.addEventListener('focus',  function () { reconnect(); });
+        }
+
+        // Fullscreen monitoring
+        if (policy.requireFullscreen) {
+            document.addEventListener('fullscreenchange', function () {
+                if (document.fullscreenElement) {
+                    recordEvent('FullscreenEntered');
+                    hideBanner();
+                } else {
+                    recordEvent('FullscreenExit');
+                    showBanner(
+                        'Fullscreen is required for this exam. Repeated exits may auto-submit your attempt.',
+                        'danger');
+                }
+            });
+        }
+
+        // Copy / paste / right-click blocking
+        if (policy.blockCopyPaste) {
+            ['copy', 'cut', 'paste'].forEach(function (ev) {
+                document.addEventListener(ev, function (e) {
+                    e.preventDefault();
+                    recordEvent('PasteAttempt', '{"action":"' + ev + '"}');
+                });
+            });
+            document.addEventListener('contextmenu', function (e) {
+                e.preventDefault();
+            });
+        }
+
+        // Keyboard shortcut blocking (Ctrl/Cmd + C/V/X/U/S/P/A and F12)
+        if (policy.blockShortcuts) {
+            document.addEventListener('keydown', function (e) {
+                var key = (e.key || '').toLowerCase();
+                var blocked = false;
+                if (e.key === 'F12') blocked = true;
+                if ((e.ctrlKey || e.metaKey) && ['c','v','x','u','s','p','a'].indexOf(key) >= 0) blocked = true;
+                if ((e.ctrlKey || e.metaKey) && e.shiftKey && (key === 'i' || key === 'j')) blocked = true;
+                if (blocked) {
+                    e.preventDefault();
+                    recordEvent('KeyboardShortcut', '{"key":"' + key + '"}');
+                }
+            });
+        }
+
+        // Connection state from the browser itself
+        window.addEventListener('online',  function () { reconnect(); });
+        window.addEventListener('offline', function () { setConn('offline'); });
+    }
+
+    function tryEnterFullscreen() {
+        if (!policy.requireFullscreen) return;
+        var el = document.documentElement;
+        if (!document.fullscreenElement && el.requestFullscreen) {
+            el.requestFullscreen().catch(function () { /* user must accept */ });
+        }
+    }
+
+    // ----- Boot ---------------------------------------------------------
+
+    function start() {
+        bindAnswers();
+        bindSecurity();
+        recordEvent('Started');
+        heartbeat();
+        setInterval(heartbeat, policy.heartbeatSeconds * 1000);
+        tick();
+
+        // Ask for fullscreen on first user interaction (browsers block
+        // requestFullscreen outside a user gesture).
+        document.body.addEventListener('click', tryEnterFullscreen, { once: true });
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', start);
+    } else {
+        start();
+    }
+
+    return {
+        confirmSubmit: confirmSubmit
+    };
 })();
 </script>
 }

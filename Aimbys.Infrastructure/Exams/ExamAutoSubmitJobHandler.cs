@@ -1,3 +1,4 @@
+using Aimbys.Application.Exams;
 using Aimbys.Application.Scheduling;
 using Aimbys.Domain.Enums;
 using Aimbys.Infrastructure.Persistence;
@@ -7,9 +8,14 @@ using Microsoft.Extensions.Logging;
 namespace Aimbys.Infrastructure.Exams;
 
 /// <summary>
-/// Recurring job handler that finds in-progress exam attempts past
-/// their deadline and force-submits them (AutoSubmitted = true).
-/// Runs every 5 minutes by default.
+/// Recurring job that finds in-progress exam attempts past their
+/// deadline and force-submits them through
+/// <see cref="IExamRuntimeService.AutoSubmitAsync"/> &mdash; not by
+/// touching the entity directly. That delegation guarantees the
+/// auto-submitted attempts are auto-evaluated, persisted in the
+/// <c>FinalPublishedScores</c> table, and (for MCQ-only papers)
+/// auto-published with student notifications + leaderboard updates,
+/// exactly the same way as a manually-submitted attempt.
 /// </summary>
 public sealed class ExamAutoSubmitJobHandler : IScheduledJobHandler
 {
@@ -22,11 +28,16 @@ public sealed class ExamAutoSubmitJobHandler : IScheduledJobHandler
     public string JobKey => Key;
 
     private readonly AppDbContext _db;
+    private readonly IExamRuntimeService _runtime;
     private readonly ILogger<ExamAutoSubmitJobHandler> _logger;
 
-    public ExamAutoSubmitJobHandler(AppDbContext db, ILogger<ExamAutoSubmitJobHandler> logger)
+    public ExamAutoSubmitJobHandler(
+        AppDbContext db,
+        IExamRuntimeService runtime,
+        ILogger<ExamAutoSubmitJobHandler> logger)
     {
         _db = db;
+        _runtime = runtime;
         _logger = logger;
     }
 
@@ -34,47 +45,61 @@ public sealed class ExamAutoSubmitJobHandler : IScheduledJobHandler
     {
         var now = DateTime.UtcNow;
 
-        // Find all in-progress attempts where the exam duration has expired
-        var overdueAttempts = await _db.ExamAttempts
-            .Include(a => a.Exam)
-            .Include(a => a.Answers)
+        // Pull just the ids + deadline-relevant columns; the runtime
+        // service re-reads each attempt with the includes it needs.
+        var candidates = await _db.ExamAttempts
+            .AsNoTracking()
             .Where(a => a.Status == AttemptStatus.InProgress
-                     && a.StartedAtUtc != null
-                     && a.Exam != null)
+                     && a.StartedAtUtc != null)
+            .Select(a => new
+            {
+                a.Id,
+                a.StartedAtUtc,
+                ExamDuration = a.Exam!.DurationMinutes
+            })
             .ToListAsync(cancellationToken);
 
-        var autoSubmitCount = 0;
+        var autoSubmittedCount = 0;
+        var failureCount = 0;
 
-        foreach (var attempt in overdueAttempts)
+        foreach (var c in candidates)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            if (attempt.Exam == null || !attempt.StartedAtUtc.HasValue)
-                continue;
+            if (!c.StartedAtUtc.HasValue) continue;
+            var deadline = c.StartedAtUtc.Value.AddMinutes(c.ExamDuration);
+            if (now <= deadline) continue;
 
-            var deadline = attempt.StartedAtUtc.Value.AddMinutes(attempt.Exam.DurationMinutes);
-            if (now <= deadline)
-                continue;
-
-            attempt.Status = AttemptStatus.Submitted;
-            attempt.SubmittedAtUtc = now;
-            attempt.AutoSubmitted = true;
-
-            // Simple auto-score sum
-            decimal totalAutoScore = 0;
-            foreach (var ans in attempt.Answers)
+            // Per-attempt try/catch so one bad attempt doesn't kill the
+            // whole job tick.
+            try
             {
-                totalAutoScore += ans.AutoMarksAwarded ?? 0;
+                var result = await _runtime.AutoSubmitAsync(c.Id, cancellationToken);
+                if (result.Success)
+                {
+                    autoSubmittedCount++;
+                }
+                else
+                {
+                    failureCount++;
+                    _logger.LogWarning(
+                        "Auto-submit failed for attempt {AttemptId}: {Error}",
+                        c.Id, result.Error);
+                }
             }
-            attempt.TotalAutoScore = totalAutoScore;
-
-            autoSubmitCount++;
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                failureCount++;
+                _logger.LogError(ex,
+                    "Auto-submit threw for attempt {AttemptId}; continuing.", c.Id);
+            }
         }
 
-        if (autoSubmitCount > 0)
+        if (autoSubmittedCount > 0 || failureCount > 0)
         {
-            await _db.SaveChangesAsync(cancellationToken);
-            _logger.LogInformation("Auto-submitted {Count} overdue exam attempts.", autoSubmitCount);
+            _logger.LogInformation(
+                "ExamAutoSubmit: submitted={Submitted} failed={Failed} considered={Considered}",
+                autoSubmittedCount, failureCount, candidates.Count);
         }
     }
 }
