@@ -7,7 +7,6 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
-
 namespace Aimbys.Web.Controllers;
 
 /// <summary>
@@ -185,6 +184,101 @@ public class AccountController : Controller
         // Redirect to role home
         var roles = await _userManager.GetRolesAsync(user);
         return Redirect(ResolveHomePathForRoles(roles));
+    }
+
+    // ---------- Set First Password (Institute Admin first-login) ---------
+
+    /// <summary>
+    /// Mandatory password-reset page shown to every newly-created
+    /// Institute Admin before they can access any other surface.
+    /// The <see cref="ForcePasswordResetMiddleware"/> redirects them here;
+    /// once they complete this form the <c>MustChangePassword</c> flag is
+    /// cleared and they are forwarded to their dashboard.
+    /// </summary>
+    [HttpGet]
+    [Authorize]
+    public IActionResult SetFirstPassword()
+    {
+        return View(new SetFirstPasswordViewModel());
+    }
+
+    [HttpPost]
+    [Authorize]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SetFirstPassword(SetFirstPasswordViewModel model)
+    {
+        if (!ModelState.IsValid)
+            return View(model);
+
+        var user = await _userManager.GetUserAsync(User);
+        if (user is null)
+            return RedirectToAction(nameof(Login));
+
+        // Look up the institute whose admin is this user, so we can
+        // validate the 8-digit code they entered.
+        var teacherProfile = await _db.TeacherProfiles
+            .AsNoTracking()
+            .FirstOrDefaultAsync(tp => tp.UserId == user.Id);
+
+        if (teacherProfile is null)
+        {
+            ModelState.AddModelError(string.Empty, "No institute profile found for your account.");
+            return View(model);
+        }
+
+        var institute = await _db.Institutes
+            .AsNoTracking()
+            .FirstOrDefaultAsync(i => i.Id == teacherProfile.InstituteId);
+
+        if (institute is null)
+        {
+            ModelState.AddModelError(string.Empty, "Institute not found.");
+            return View(model);
+        }
+
+        // Verify the 8-digit code matches what was generated for this institute.
+        if (!string.Equals(institute.InstituteLoginId, model.InstituteLoginId,
+                StringComparison.Ordinal))
+        {
+            ModelState.AddModelError(
+                nameof(model.InstituteLoginId),
+                "The Institute Login ID you entered is incorrect. "
+              + "Please check with your Super Admin.");
+            return View(model);
+        }
+
+        // The stored password is "Id-{loginId}" — remove it and set the new one.
+        var currentPassword = $"Id-{institute.InstituteLoginId}";
+        var changeResult = await _userManager.ChangePasswordAsync(
+            user, currentPassword, model.NewPassword);
+
+        if (!changeResult.Succeeded)
+        {
+            foreach (var e in changeResult.Errors)
+                ModelState.AddModelError(string.Empty, e.Description);
+            return View(model);
+        }
+
+        // Clear the forced-reset flag.
+        var policy = await _db.UserPasswordPolicies
+            .FirstOrDefaultAsync(p => p.UserId == user.Id);
+        if (policy is not null)
+        {
+            policy.MustChangePassword = false;
+            policy.UpdatedAtUtc = DateTime.UtcNow;
+            await _db.SaveChangesAsync();
+        }
+
+        // Refresh the auth cookie so subsequent requests see the
+        // cleared flag immediately without requiring a re-login.
+        await _signInManager.RefreshSignInAsync(user);
+
+        _logger.LogInformation(
+            "Institute Admin {Email} completed first-login password setup.", user.Email);
+
+        TempData["Success"] =
+            "Your password has been set successfully. Welcome to AIMBYS!";
+        return Redirect("/Institute");
     }
 
     // ---------- Access denied -------------------------------------------

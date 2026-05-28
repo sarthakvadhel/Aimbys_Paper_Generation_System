@@ -1,6 +1,7 @@
 @model Aimbys.Web.ViewModels.Institutes.InstituteIndexViewModel
 @{
     ViewData["Title"] = "Institutes";
+    var newLoginId = TempData["NewInstituteLoginId"] as string;
 }
 
 <div class="container-fluid py-4 px-3 px-md-4">
@@ -21,7 +22,48 @@
         </div>
     </header>
 
-    @if (TempData["Success"] is string success)
+    @if (!string.IsNullOrEmpty(newLoginId))
+    {
+        @* Rich login-ID reveal banner — shown once immediately after creation *@
+        <div class="alert border-0 rounded-4 p-4 mb-3 d-flex align-items-start gap-3"
+             style="background:#052e16;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26"
+                 fill="#4ade80" viewBox="0 0 16 16" class="flex-shrink-0 mt-1">
+                <path d="M8 1a2 2 0 0 1 2 2v4H6V3a2 2 0 0 1 2-2zm3 6V3a3 3 0 0 0-6 0v4a2 2 0 0 0-2 2v5a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/>
+            </svg>
+            <div class="flex-grow-1">
+                <div class="fw-bold mb-1" style="color:#4ade80;">Institute &amp; Admin Account Created</div>
+                <p class="mb-2 text-white-50 small">
+                    Share the <strong class="text-white">Institute Login ID</strong> below with the
+                    Institute Admin — it is their <strong class="text-white">initial password</strong>
+                    and must be entered on first login.
+                    <strong class="text-warning">Record it now — this will not be shown again.</strong>
+                </p>
+                <div class="d-flex align-items-center gap-3 flex-wrap">
+                    <div class="d-flex align-items-center gap-3 rounded-3 px-4 py-2"
+                         style="background:#0a3d22;">
+                        <span class="text-secondary small text-nowrap">Institute Login ID</span>
+                        <span class="fw-bold text-white"
+                              style="font-size:1.75rem;letter-spacing:0.35em;font-family:monospace;">
+                            @newLoginId
+                        </span>
+                    </div>
+                    <button type="button"
+                            id="indexCopyBtn"
+                            class="btn btn-sm btn-outline-success"
+                            onclick="navigator.clipboard.writeText('@newLoginId').then(function(){
+                                var b=document.getElementById('indexCopyBtn');
+                                b.textContent='✓ Copied!';
+                                setTimeout(function(){ b.textContent='Copy ID'; },2000);
+                            })">
+                        Copy ID
+                    </button>
+                </div>
+            </div>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="alert"></button>
+        </div>
+    }
+    else if (TempData["Success"] is string success)
     {
         <div class="alert alert-success alert-dismissible fade show" role="alert">
             @success

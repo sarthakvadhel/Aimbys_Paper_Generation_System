@@ -24,6 +24,36 @@
                 <div class="fw-medium">@Model.Code</div>
             </div>
             <div class="col-md-4">
+                <div class="text-secondary small d-flex align-items-center gap-1">
+                    Institute Login ID
+                    <span class="badge rounded-pill"
+                          style="background:#1d4ed8;font-size:0.65rem;">initial password</span>
+                </div>
+                @if (!string.IsNullOrEmpty(Model.InstituteLoginId) && Model.InstituteLoginId != "00000000")
+                {
+                    <div class="d-flex align-items-center gap-2 mt-1">
+                        <span class="fw-bold"
+                              style="font-size:1.25rem;letter-spacing:0.2em;font-family:monospace;">
+                            @Model.InstituteLoginId
+                        </span>
+                        <button type="button"
+                                class="btn btn-sm btn-outline-secondary py-0 px-2"
+                                style="font-size:0.7rem;"
+                                onclick="navigator.clipboard.writeText('@Model.InstituteLoginId').then(function(){ this.textContent='✓'; setTimeout(function(t){ t.textContent='Copy'; }.bind(null,this),1500); }.bind(this))">
+                            Copy
+                        </button>
+                    </div>
+                    <div class="text-secondary small mt-1">
+                        Share this ID securely with the Institute Admin. It is their
+                        initial login password and will be required on first sign-in.
+                    </div>
+                }
+                else
+                {
+                    <div class="fw-medium text-secondary">—</div>
+                }
+            </div>
+            <div class="col-md-4">
                 <div class="text-secondary small">Type</div>
                 <div class="fw-medium">@Model.Type</div>
             </div>

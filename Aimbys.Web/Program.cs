@@ -133,6 +133,12 @@ app.UseAuthorization();
 // short-circuits to the suspension page instead of executing controller code.
 app.UseSubscriptionEnforcement();
 
+// Force-password-reset gate: intercepts InstituteAdmin users who haven't
+// changed their auto-generated initial password yet and redirects them to
+// /Account/SetFirstPassword. Runs after subscription enforcement so a
+// suspended tenant still hits the suspension page first.
+app.UseMiddleware<ForcePasswordResetMiddleware>();
+
 app.MapStaticAssets();
 
 // Areas first so {area:exists} wins over the default route for /Admin/*.

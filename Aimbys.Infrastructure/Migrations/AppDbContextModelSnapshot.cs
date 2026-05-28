@@ -1192,6 +1192,12 @@ namespace Aimbys.Infrastructure.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
 
+                    b.Property<string>("InstituteLoginId")
+                        .IsRequired()
+                        .HasMaxLength(8)
+                        .HasColumnType("nvarchar(8)")
+                        .HasDefaultValue("00000000");
+
                     b.Property<DateTime?>("LicenseExpiresAtUtc")
                         .HasColumnType("datetime2");
 

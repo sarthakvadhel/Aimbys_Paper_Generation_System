@@ -23,11 +23,20 @@ public sealed record WorkflowResult
     /// <summary>State the instance now sits in. Set on success, null on failure.</summary>
     public string? CurrentState { get; init; }
 
-    public static WorkflowResult Success(Guid instanceId, string currentState) => new()
+    /// <summary>
+    /// Optional opaque metadata string. Used by
+    /// <c>InstituteOnboardingService.CreateAsync</c> to surface the
+    /// generated <c>InstituteLoginId</c> back to the controller without
+    /// adding a dedicated DTO.
+    /// </summary>
+    public string? Metadata { get; init; }
+
+    public static WorkflowResult Success(Guid instanceId, string currentState, string? metadata = null) => new()
     {
         IsSuccess = true,
         InstanceId = instanceId,
-        CurrentState = currentState
+        CurrentState = currentState,
+        Metadata = metadata
     };
 
     public static WorkflowResult Failure(string code, string message, Guid? instanceId = null) => new()

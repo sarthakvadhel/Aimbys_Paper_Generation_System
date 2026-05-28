@@ -48,6 +48,15 @@ public class Institute : IRestoreable
     public string? PrimaryColorHex { get; set; }
 
     /// <summary>
+    /// Unique 8-digit numeric code auto-generated when the Super Admin
+    /// creates the institute. This code is used as the Institute Admin's
+    /// initial password and is displayed to the Super Admin on the Details
+    /// page so it can be shared securely. It is NOT nullable — every
+    /// institute created via <c>InstituteOnboardingService</c> has one.
+    /// </summary>
+    public string InstituteLoginId { get; set; } = string.Empty;
+
+    /// <summary>
     /// Identity user id of the Super Admin who approved (or rejected) this
     /// institute. Null while <see cref="InstituteStatus.PendingApproval"/>.
     /// </summary>

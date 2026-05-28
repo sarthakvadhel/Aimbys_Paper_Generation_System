@@ -45,6 +45,27 @@ public class InstituteOnboardingService : IInstituteOnboardingService
         _userManager = userManager;
     }
 
+    /// <summary>
+    /// Generates a guaranteed-unique 8-digit numeric institute login code.
+    /// Uniqueness is checked against existing <c>InstituteLoginId</c> values
+    /// in the database so two concurrent creates cannot collide.
+    /// </summary>
+    private async Task<string> GenerateUniqueLoginIdAsync(CancellationToken ct)
+    {
+        var rng = Random.Shared;
+        string code;
+        do
+        {
+            // Zero-pad to ensure exactly 8 digits (10_000_000 … 99_999_999).
+            code = rng.Next(10_000_000, 100_000_000).ToString("D8");
+        }
+        while (await _db.Institutes
+                   .IgnoreQueryFilters()
+                   .AnyAsync(i => i.InstituteLoginId == code, ct));
+
+        return code;
+    }
+
     public async Task<WorkflowResult> CreateAsync(InstituteCreateRequest request, ClaimsPrincipal actor, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(request.Name))
@@ -62,11 +83,22 @@ public class InstituteOnboardingService : IInstituteOnboardingService
 
         var actorUserId = actor.FindFirstValue(ClaimTypes.NameIdentifier) ?? "system";
 
+        // Generate a unique 8-digit login ID.  This is also the admin's
+        // initial password — they MUST change it on first login.
+        var loginId = await GenerateUniqueLoginIdAsync(ct);
+
+        // The Identity password policy requires at least one uppercase letter,
+        // one digit, and one lowercase letter.  We prefix with "Id-" to
+        // satisfy those requirements while keeping the 8 digits as the
+        // memorable / shareable secret.
+        var initialPassword = $"Id-{loginId}";
+
         // Create the Institute entity
         var institute = new Institute
         {
             Name = request.Name,
             Code = request.Code,
+            InstituteLoginId = loginId,
             Type = request.Type,
             City = request.City,
             State = request.State,
@@ -86,13 +118,23 @@ public class InstituteOnboardingService : IInstituteOnboardingService
             Email = request.AdminEmail,
             EmailConfirmed = true
         };
-        var createResult = await _userManager.CreateAsync(adminUser, "Admin@1234");
+        var createResult = await _userManager.CreateAsync(adminUser, initialPassword);
         if (!createResult.Succeeded)
         {
             var errors = string.Join("; ", createResult.Errors.Select(e => e.Description));
             return WorkflowResult.Failure("USER_CREATE_FAILED", $"Failed to create admin user: {errors}");
         }
         await _userManager.AddToRoleAsync(adminUser, Roles.InstituteAdmin);
+
+        // Mark the admin as requiring a password reset on first login.
+        // The ForcePasswordResetMiddleware intercepts authenticated
+        // InstituteAdmin requests and redirects to /Account/SetFirstPassword
+        // until this flag is cleared.
+        _db.UserPasswordPolicies.Add(new Domain.Entities.UserPasswordPolicy
+        {
+            UserId = adminUser.Id,
+            MustChangePassword = true
+        });
 
         // Create TeacherProfile placeholder
         var displayName = request.AdminEmail.Split('@')[0];
@@ -123,7 +165,7 @@ public class InstituteOnboardingService : IInstituteOnboardingService
             "Institute",
             institute.Id.ToString(),
             actorUserId,
-            JsonSerializer.Serialize(new { institute.Name, institute.Code, AdminEmail = request.AdminEmail }),
+            JsonSerializer.Serialize(new { institute.Name, institute.Code, institute.InstituteLoginId, AdminEmail = request.AdminEmail }),
             cancellationToken: ct);
 
         // Domain event
@@ -141,7 +183,12 @@ public class InstituteOnboardingService : IInstituteOnboardingService
 
         await _db.SaveChangesAsync(ct);
 
-        return workflowResult;
+        // Return with Metadata = loginId so the controller can display it
+        // to the Super Admin (e.g. on the Details page or via TempData).
+        return WorkflowResult.Success(
+            workflowResult.InstanceId ?? Guid.Empty,
+            workflowResult.CurrentState ?? "PendingApproval",
+            metadata: institute.InstituteLoginId);
     }
 
     public async Task<WorkflowResult> ApproveAsync(Guid instituteId, ClaimsPrincipal actor, CancellationToken ct)

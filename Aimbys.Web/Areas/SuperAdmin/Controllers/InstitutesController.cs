@@ -164,7 +164,10 @@ public class InstitutesController : Controller
             return View(model);
         }
 
-        TempData["Success"] = "Institute created successfully and is pending approval.";
+        // Surface the generated 8-digit login ID to the Super Admin so it
+        // can be shared securely with the Institute Admin.
+        TempData["NewInstituteLoginId"] = result.Metadata;
+        TempData["Success"] = $"Institute created. The admin's initial login ID (password) is: {result.Metadata}";
         return RedirectToAction(nameof(Index));
     }
 
