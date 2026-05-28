@@ -70,7 +70,7 @@ npm run build    # vite build
     ```sh
     dotnet user-secrets --project Aimbys.Web set \
       ConnectionStrings:Default \
-      "Server=localhost,1433;Database=Aimbys.Dev;User Id=sa;Password=<your-pwd>;Encrypt=True;TrustServerCertificate=True;"
+      "Server=localhost,1433;Database=AimbysDb;User Id=sa;Password=<your-pwd>;Encrypt=True;TrustServerCertificate=True;"
     ```
 
   - Environment variable (CI / containers):

@@ -4,12 +4,26 @@ using Microsoft.EntityFrameworkCore.Design;
 namespace Aimbys.Infrastructure.Persistence;
 
 /// <summary>
-/// Design-time factory used by <c>dotnet ef</c> when generating migrations.
+/// Design-time factory used by <c>dotnet ef</c> when generating or
+/// applying migrations. The shipped <c>Aimbys.Web/appsettings.Development.json</c>
+/// targets database <c>AimbysDb</c>; this factory's last-resort fallback
+/// must use the <em>same</em> name so design-time and runtime converge on
+/// one database. Earlier revisions defaulted to a separate
+/// <c>Aimbys.DesignTime</c> database, which silently bifurcated schema
+/// between developers' machines.
 ///
-/// At design time the EF tooling can either spin up the host (which requires
-/// the full <see cref="Aimbys.Web"/> startup pipeline) or call this factory
-/// directly. Providing a factory keeps migrations self-contained: they only
-/// need a connection string, not a configured app.
+/// <para>
+/// Resolution order, first non-empty wins:
+/// </para>
+/// <list type="number">
+///   <item>The <c>AIMBYS_CONNECTION_STRING</c> environment variable
+///         (preserves the existing CI / scripted-override contract).</item>
+///   <item>The standard ASP.NET <c>ConnectionStrings__Default</c>
+///         environment variable.</item>
+///   <item>The hardcoded LocalDB fallback (<see cref="DefaultDesignTimeConnectionString"/>),
+///         which targets <c>AimbysDb</c> &mdash; the same database the
+///         dev runtime uses.</item>
+/// </list>
 /// </summary>
 public class AppDbContextFactory : IDesignTimeDbContextFactory<AppDbContext>
 {
@@ -20,17 +34,22 @@ public class AppDbContextFactory : IDesignTimeDbContextFactory<AppDbContext>
     public const string ConnectionStringEnvVar = "AIMBYS_CONNECTION_STRING";
 
     /// <summary>
-    /// Fallback used when no environment variable is set. Targets SQL Server
-    /// LocalDB on Windows, which is the typical dev install. The migration
-    /// tooling does not need the database to exist or be reachable to scaffold
-    /// migrations &mdash; only to apply them.
+    /// Last-resort fallback when no environment variable is set. Targets
+    /// SQL Server LocalDB and the <c>AimbysDb</c> database so design-time
+    /// migrations land in the same database the dev runtime uses.
     /// </summary>
     public const string DefaultDesignTimeConnectionString =
-        "Server=(localdb)\\mssqllocaldb;Database=Aimbys.DesignTime;Trusted_Connection=True;TrustServerCertificate=True;MultipleActiveResultSets=true";
+        "Server=(localdb)\\mssqllocaldb;Database=AimbysDb;Trusted_Connection=True;TrustServerCertificate=True;MultipleActiveResultSets=true";
 
     public AppDbContext CreateDbContext(string[] args)
     {
         var conn = Environment.GetEnvironmentVariable(ConnectionStringEnvVar);
+
+        if (string.IsNullOrWhiteSpace(conn))
+        {
+            conn = Environment.GetEnvironmentVariable("ConnectionStrings__Default");
+        }
+
         if (string.IsNullOrWhiteSpace(conn))
         {
             conn = DefaultDesignTimeConnectionString;

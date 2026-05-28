@@ -105,6 +105,26 @@ JSON to match the existing `wwwroot/js/charts.js` Chart.js helper. Use a
 `ChartFeed` (`Labels` + `IReadOnlyList<ChartSeries>`) on the service side and
 reshape in the controller.
 
+## Database conventions
+
+- The runtime reads **`ConnectionStrings:Default`** — one key, one place.
+  Anything else (e.g. `ConnectionStrings:AimbysDb`) is wrong; older docs
+  that referenced it have been corrected.
+- Convention DB name is **`AimbysDb`**. Used by:
+  - `Aimbys.Web/appsettings.Development.json` (runtime dev)
+  - `Aimbys.Infrastructure/Persistence/AppDbContextFactory.cs` (last-resort
+    design-time fallback)
+  - `SETUP.md` (canonical install guide)
+
+  Do not reintroduce divergent names like `Aimbys.DesignTime`, `Aimbys.Dev`,
+  or `Aimbys` &mdash; design-time and runtime must converge on the same DB.
+- The Identity seeder is config-driven: it reads
+  `Identity:DefaultAdmin:Email` and `Identity:DefaultAdmin:Password`. **No
+  default credentials are baked into source.** Doc them in `SETUP.md`,
+  never in C#.
+- The single canonical migration command (run from repo root):
+  `dotnet ef database update --project Aimbys.Infrastructure --startup-project Aimbys.Web`
+
 ## EF Core notes
 
 - Bucketed time series (hourly / daily): pull raw timestamps in the window via
