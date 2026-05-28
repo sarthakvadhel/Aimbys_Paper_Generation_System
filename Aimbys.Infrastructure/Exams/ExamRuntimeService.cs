@@ -11,6 +11,7 @@ using Aimbys.Domain.Events;
 using Aimbys.Infrastructure.Analytics;
 using Aimbys.Infrastructure.Notifications;
 using Aimbys.Infrastructure.Persistence;
+using Aimbys.Infrastructure.Results;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -34,6 +35,7 @@ public sealed class ExamRuntimeService : IExamRuntimeService
     private readonly AppDbContext _db;
     private readonly IEvaluationAssignmentService _assignmentService;
     private readonly IAnalyticsAggregationService _analytics;
+    private readonly IResultPublicationService _publication;
     private readonly DomainEventCollector _events;
     private readonly ILogger<ExamRuntimeService> _logger;
 
@@ -41,12 +43,14 @@ public sealed class ExamRuntimeService : IExamRuntimeService
         AppDbContext db,
         IEvaluationAssignmentService assignmentService,
         IAnalyticsAggregationService analytics,
+        IResultPublicationService publication,
         DomainEventCollector events,
         ILogger<ExamRuntimeService> logger)
     {
         _db = db;
         _assignmentService = assignmentService;
         _analytics = analytics;
+        _publication = publication;
         _events = events;
         _logger = logger;
     }
@@ -263,23 +267,30 @@ public sealed class ExamRuntimeService : IExamRuntimeService
 
         _db.FinalPublishedScores.AddRange(finalPublishedScores);
 
-        if (!hasManualQuestions)
-        {
-            // All questions are auto-evaluated — publish immediately.
-            result.State = ResultState.Published;
-            result.IsPublished = true;
-            result.PublishedAtUtc = DateTime.UtcNow;
-            result.PublishedByUserId = "system";
-            result.Grade = ComputeGrade(result.Percentage);
-            attempt.Status = AttemptStatus.Published;
-        }
-
+        // Persist the auto-evaluation work first; the publication path
+        // re-reads FinalPublishedScores and the Result row.
         await _db.SaveChangesAsync(ct);
 
         if (hasManualQuestions)
+        {
+            // Route manual answers to the evaluator inbox; result will be
+            // published later by the institute admin.
             await _assignmentService.AssignPendingAsync(attempt.ExamId, ct);
+        }
         else
-            await _analytics.RecomputeLeaderboardAsync(attempt.ExamId, ct);
+        {
+            // Auto-only paper: publish this attempt's result through the
+            // single sanctioned publication path so audit, recipient
+            // notification, ranks, and leaderboard are all kept in sync.
+            var publishResult = await _publication.PublishAttemptAsync(
+                attempt.Id, ResultPublicationService.SystemActorId, ct);
+            if (!publishResult.Success)
+            {
+                _logger.LogError(
+                    "Auto-publish failed for attempt {AttemptId}: {Error}",
+                    attempt.Id, publishResult.Error);
+            }
+        }
 
         _events.Enqueue(new ExamSubmittedEvent
         {
@@ -413,15 +424,4 @@ public sealed class ExamRuntimeService : IExamRuntimeService
         var correct = qv.Options.FirstOrDefault(o => o.IsCorrect);
         return string.Equals(correct?.Text, typed, StringComparison.OrdinalIgnoreCase) ? maxMarks : 0m;
     }
-
-    private static string ComputeGrade(double pct) => pct switch
-    {
-        >= 90 => "A+",
-        >= 80 => "A",
-        >= 70 => "B+",
-        >= 60 => "B",
-        >= 50 => "C",
-        >= 40 => "D",
-        _ => "F"
-    };
 }

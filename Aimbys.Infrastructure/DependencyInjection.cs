@@ -275,6 +275,8 @@ public static class DependencyInjection
         // ----- Results (Chunk 29) ---------------------------------------
         services.AddScoped<IResultPublicationService, ResultPublicationService>();
         services.AddScoped<IAppealService, AppealService>();
+        // Slice C: archive snapshots are written on every batch publish.
+        services.AddScoped<IResultArchiveService, ResultArchiveService>();
 
         // ----- Analytics (Chunk 30) -------------------------------------
         services.AddScoped<IAnalyticsAggregationService, AnalyticsAggregationService>();

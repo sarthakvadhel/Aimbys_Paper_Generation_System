@@ -1,24 +1,139 @@
+@using Aimbys.Domain.Enums
+@using Aimbys.Web.Areas.Institute.Controllers
+@using Aimbys.Web.Models.UI
+@model IReadOnlyList<ExamPublicationRow>
 @{
     ViewData["Title"] = "Results Publication";
+
+    string PublicationBadge(ExamPublicationRow r)
+    {
+        if (r.TotalAttempts == 0)        return StatusBadge.Render("draft");
+        if (r.PublishedAttempts == 0)    return StatusBadge.Render("pending");
+        if (r.PublishedAttempts < r.TotalAttempts) return StatusBadge.Render("info");
+        return StatusBadge.Render("published");
+    }
 }
 
-<div class="container-fluid py-4">
-    <h1 class="h3 mb-4">Results Publication</h1>
+<div class="container-fluid py-4 px-3 px-md-4">
 
-    <div class="card shadow-sm">
-        <div class="card-body">
-            <p class="text-muted">Select an exam and publish its results. V1 placeholder — real exam list integration arrives with the exam pipeline chunks.</p>
+    <header class="mb-4">
+        <div class="text-secondary small text-uppercase" style="letter-spacing: 0.08em;">Institute / Results</div>
+        <h1 class="h3 fw-bold mt-1 mb-0">Results Publication</h1>
+        <p class="text-secondary mb-0 mt-1">Publish results once evaluation and moderation are complete. Each publish creates an immutable archive snapshot.</p>
+    </header>
 
-            <form asp-action="Publish" method="post" class="d-inline">
-                @Html.AntiForgeryToken()
-                <div class="mb-3">
-                    <label for="examId" class="form-label">Exam ID</label>
-                    <input type="text" class="form-control" id="examId" name="examId" placeholder="Enter Exam GUID" required />
-                </div>
-                <button type="submit" class="btn btn-primary">
-                    <i class="bi bi-check2-circle me-1"></i> Publish Results
-                </button>
-            </form>
+    @if (TempData["Success"] is string okMsg)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            @okMsg
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
-    </div>
+    }
+    @if (TempData["Error"] is string errMsg)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            @errMsg
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    @if (Model.Count == 0)
+    {
+        <div class="bg-body border rounded-3 p-5 text-center text-secondary">
+            <div class="mb-2" style="font-size: 1.6rem;">&#128202;</div>
+            <div class="fw-semibold mb-1">No exams yet</div>
+            <div class="small">
+                Once an exam is scheduled and students submit attempts, it will appear here ready for publication.
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="bg-body border rounded-3 overflow-hidden">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0 aimbys-data-table">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Exam</th>
+                            <th>Status</th>
+                            <th class="text-end">Attempts</th>
+                            <th class="text-end">Published</th>
+                            <th class="text-end">Archives</th>
+                            <th class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var row in Model)
+                        {
+                            var canPublish = row.TotalAttempts > 0
+                                && row.PublishedAttempts < row.TotalAttempts
+                                && row.BlockingReason is null;
+                            <tr>
+                                <td>
+                                    <div class="fw-semibold">@row.Title</div>
+                                    <div class="text-secondary small">
+                                        @row.ScheduledAtUtc.ToString("dd MMM yyyy · HH:mm 'UTC'")
+                                    </div>
+                                </td>
+                                <td>@Html.Raw(PublicationBadge(row))</td>
+                                <td class="text-end">@row.TotalAttempts.ToString("N0")</td>
+                                <td class="text-end">
+                                    @row.PublishedAttempts.ToString("N0")
+                                    @if (row.TotalAttempts > 0)
+                                    {
+                                        <span class="text-secondary small">/ @row.TotalAttempts.ToString("N0")</span>
+                                    }
+                                </td>
+                                <td class="text-end">
+                                    @if (row.ArchiveCount == 0)
+                                    {
+                                        <span class="text-secondary small">&mdash;</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge text-bg-secondary">@row.ArchiveCount</span>
+                                    }
+                                </td>
+                                <td class="text-end">
+                                    @if (canPublish)
+                                    {
+                                        <form asp-action="Publish" asp-route-examId="@row.ExamId" method="post" class="d-inline">
+                                            @Html.AntiForgeryToken()
+                                            <button type="submit" class="btn btn-primary btn-sm">
+                                                Publish results
+                                            </button>
+                                        </form>
+                                    }
+                                    else if (row.TotalAttempts == 0)
+                                    {
+                                        <span class="text-secondary small">No submissions</span>
+                                    }
+                                    else if (row.PublishedAttempts == row.TotalAttempts)
+                                    {
+                                        <span class="text-secondary small">All published</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-warning small fw-semibold"
+                                              title="@row.BlockingReason">
+                                            Blocked
+                                        </span>
+                                    }
+                                </td>
+                            </tr>
+                            @if (row.BlockingReason is not null && canPublish == false)
+                            {
+                                <tr class="table-warning">
+                                    <td colspan="6" class="small text-secondary">
+                                        <strong>Blocked:</strong> @row.BlockingReason
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+
 </div>
