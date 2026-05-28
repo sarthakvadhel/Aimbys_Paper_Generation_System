@@ -25,8 +25,12 @@
     @if (!string.IsNullOrEmpty(newLoginId))
     {
         @* Rich login-ID reveal banner — shown once immediately after creation *@
+        @{
+            var fullPassword = $"Aimbys@{newLoginId}";
+        }
         <div class="alert border-0 rounded-4 p-4 mb-3 d-flex align-items-start gap-3"
-             style="background:#052e16;">
+             style="background:#052e16;"
+             id="loginIdBanner">
             <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26"
                  fill="#4ade80" viewBox="0 0 16 16" class="flex-shrink-0 mt-1">
                 <path d="M8 1a2 2 0 0 1 2 2v4H6V3a2 2 0 0 1 2-2zm3 6V3a3 3 0 0 0-6 0v4a2 2 0 0 0-2 2v5a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/>
@@ -34,34 +38,81 @@
             <div class="flex-grow-1">
                 <div class="fw-bold mb-1" style="color:#4ade80;">Institute &amp; Admin Account Created</div>
                 <p class="mb-2 text-white-50 small">
-                    Share the <strong class="text-white">Institute Login ID</strong> below with the
-                    Institute Admin — it is their <strong class="text-white">initial password</strong>
-                    and must be entered on first login.
-                    <strong class="text-warning">Record it now — this will not be shown again.</strong>
+                    Share these credentials securely with the Institute Admin.
+                    On <strong class="text-white">first login</strong>, the admin enters their
+                    email and the <strong class="text-white">full password below</strong>.
+                    They will then be asked to set a new password.
+                    <strong class="text-warning">This will not be shown again — record it now.</strong>
                 </p>
-                <div class="d-flex align-items-center gap-3 flex-wrap">
-                    <div class="d-flex align-items-center gap-3 rounded-3 px-4 py-2"
-                         style="background:#0a3d22;">
-                        <span class="text-secondary small text-nowrap">Institute Login ID</span>
-                        <span class="fw-bold text-white"
-                              style="font-size:1.75rem;letter-spacing:0.35em;font-family:monospace;">
-                            @newLoginId
-                        </span>
+
+                <div class="row g-2 mb-3">
+                    <div class="col-12">
+                        <div class="rounded-3 px-3 py-2 d-flex justify-content-between align-items-center"
+                             style="background:#0a3d22;">
+                            <div>
+                                <div class="text-secondary" style="font-size:0.7rem;text-transform:uppercase;letter-spacing:0.08em;">Institute Login ID (8-digit code)</div>
+                                <span class="fw-bold text-white"
+                                      style="font-size:1.4rem;letter-spacing:0.25em;font-family:monospace;">
+                                    @newLoginId
+                                </span>
+                            </div>
+                        </div>
                     </div>
-                    <button type="button"
-                            id="indexCopyBtn"
-                            class="btn btn-sm btn-outline-success"
-                            onclick="navigator.clipboard.writeText('@newLoginId').then(function(){
-                                var b=document.getElementById('indexCopyBtn');
-                                b.textContent='✓ Copied!';
-                                setTimeout(function(){ b.textContent='Copy ID'; },2000);
-                            })">
-                        Copy ID
-                    </button>
+                    <div class="col-12">
+                        <div class="rounded-3 px-3 py-2 d-flex justify-content-between align-items-center"
+                             style="background:#1e3a5f;">
+                            <div>
+                                <div class="text-secondary" style="font-size:0.7rem;text-transform:uppercase;letter-spacing:0.08em;">First-Login Password (type this exactly)</div>
+                                <span class="fw-bold text-white"
+                                      id="firstLoginPwd"
+                                      style="font-size:1.4rem;letter-spacing:0.12em;font-family:monospace;">
+                                    Aimbys&commat;@newLoginId
+                                </span>
+                            </div>
+                            <button type="button"
+                                    id="indexCopyBtn"
+                                    class="btn btn-sm btn-outline-success ms-3 flex-shrink-0"
+                                    data-password="Aimbys@@@newLoginId"
+                                    onclick="aimbysAdminCopy(this)">
+                                Copy
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="alert border-0 rounded-3 py-2 px-3 mb-0 small"
+                     style="background:#1a2e1a;">
+                    <strong class="text-white">Login instructions for the Institute Admin:</strong>
+                    <ol class="mb-0 mt-1 text-white-50 ps-3">
+                        <li>Go to the login page and enter email: <code style="color:#93c5fd;">@(TempData["NewInstituteAdminEmail"] as string ?? "the admin email")</code></li>
+                        <li>Enter password: <code style="color:#4ade80;" id="pwdHint">Aimbys&commat;@newLoginId</code></li>
+                        <li>You will be redirected to set a permanent password.</li>
+                        <li>On the next screen enter the 8-digit code <strong class="text-white">@newLoginId</strong> to verify your identity.</li>
+                    </ol>
                 </div>
             </div>
             <button type="button" class="btn-close btn-close-white" data-bs-dismiss="alert"></button>
         </div>
+        <script>
+        function aimbysAdminCopy(btn) {
+            var pw = btn.getAttribute('data-password');
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(pw).then(function () {
+                    btn.textContent = '✓ Copied!';
+                    setTimeout(function () { btn.textContent = 'Copy'; }, 2500);
+                });
+            } else {
+                // Fallback for http:// dev environments
+                var ta = document.createElement('textarea');
+                ta.value = pw; ta.style.position = 'fixed'; ta.style.opacity = '0';
+                document.body.appendChild(ta); ta.select();
+                try { document.execCommand('copy'); btn.textContent = '✓ Copied!'; }
+                catch(e) { btn.textContent = 'Copy failed'; }
+                document.body.removeChild(ta);
+                setTimeout(function () { btn.textContent = 'Copy'; }, 2500);
+            }
+        }
+        </script>
     }
     else if (TempData["Success"] is string success)
     {

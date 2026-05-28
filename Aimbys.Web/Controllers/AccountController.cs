@@ -247,8 +247,8 @@ public class AccountController : Controller
             return View(model);
         }
 
-        // The stored password is "Id-{loginId}" — remove it and set the new one.
-        var currentPassword = $"Id-{institute.InstituteLoginId}";
+        // The stored password is "Aimbys@{loginId}" — reconstruct and change.
+        var currentPassword = $"Aimbys@{institute.InstituteLoginId}";
         var changeResult = await _userManager.ChangePasswordAsync(
             user, currentPassword, model.NewPassword);
 
@@ -329,7 +329,7 @@ public class AccountController : Controller
         var policy = await _db.UserPasswordPolicies
             .FirstOrDefaultAsync(p => p.UserId == user.Id);
         if (policy?.MustChangePassword == true)
-            return RedirectToAction(nameof(ChangePassword));
+            return RedirectToAction(nameof(SetFirstPassword));
 
         if (path == RoleHomeRedirector.FallbackHome)
         {

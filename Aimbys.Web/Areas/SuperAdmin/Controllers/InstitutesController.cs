@@ -167,7 +167,8 @@ public class InstitutesController : Controller
         // Surface the generated 8-digit login ID to the Super Admin so it
         // can be shared securely with the Institute Admin.
         TempData["NewInstituteLoginId"] = result.Metadata;
-        TempData["Success"] = $"Institute created. The admin's initial login ID (password) is: {result.Metadata}";
+        TempData["NewInstituteAdminEmail"] = model.AdminEmail;
+        TempData["Success"] = $"Institute created. Admin password: Aimbys@{result.Metadata} — share this securely.";
         return RedirectToAction(nameof(Index));
     }
 

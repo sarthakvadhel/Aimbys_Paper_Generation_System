@@ -83,15 +83,13 @@ public class InstituteOnboardingService : IInstituteOnboardingService
 
         var actorUserId = actor.FindFirstValue(ClaimTypes.NameIdentifier) ?? "system";
 
-        // Generate a unique 8-digit login ID.  This is also the admin's
-        // initial password — they MUST change it on first login.
+        // Generate a unique 8-digit login ID.  The first-login password is
+        // "Aimbys@{loginId}" — communicated to the admin by the Super Admin.
+        // Format breakdown: "Aimbys" (uppercase A, 5 lowercase) + "@" (special)
+        // + 8 digits → satisfies every Identity complexity rule without any
+        // hidden prefixes the user would have to guess.
         var loginId = await GenerateUniqueLoginIdAsync(ct);
-
-        // The Identity password policy requires at least one uppercase letter,
-        // one digit, and one lowercase letter.  We prefix with "Id-" to
-        // satisfy those requirements while keeping the 8 digits as the
-        // memorable / shareable secret.
-        var initialPassword = $"Id-{loginId}";
+        var initialPassword = $"Aimbys@{loginId}";
 
         // Create the Institute entity
         var institute = new Institute

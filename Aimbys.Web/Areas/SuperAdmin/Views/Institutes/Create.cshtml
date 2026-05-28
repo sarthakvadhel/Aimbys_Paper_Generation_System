@@ -13,8 +13,11 @@
 
     @if (!string.IsNullOrEmpty(newLoginId))
     {
+        @{
+            var fullPassword = $"Aimbys@{newLoginId}";
+        }
         <div class="alert border-0 rounded-4 p-4 mb-4 d-flex align-items-start gap-3"
-             style="background:#052e16;border-left:4px solid #16a34a !important;">
+             style="background:#052e16; border-left:4px solid #16a34a !important;">
             <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28"
                  fill="#4ade80" viewBox="0 0 16 16" class="flex-shrink-0 mt-1">
                 <path d="M8 1a2 2 0 0 1 2 2v4H6V3a2 2 0 0 1 2-2zm3 6V3a3 3 0 0 0-6 0v4a2 2 0 0 0-2 2v5a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/>
@@ -22,36 +25,52 @@
             <div>
                 <div class="fw-bold mb-1" style="color:#4ade80;">Institute Created Successfully</div>
                 <p class="mb-2 text-white-50 small">
-                    The Institute Admin account has been created. Share the
-                    <strong class="text-white">Institute Login ID</strong> below with the
-                    admin — it is their <strong class="text-white">initial password</strong>
-                    and must be entered on first login before they can set a new one.
-                    <strong class="text-warning">Keep this ID secure and do not share it over
-                    unsecured channels.</strong>
+                    Share the <strong class="text-white">first-login password</strong> below with the
+                    admin — they enter it exactly as shown in the Password field.
+                    <strong class="text-warning">This will not be shown again.</strong>
                 </p>
-                <div class="d-flex align-items-center gap-3 flex-wrap">
+                <div class="d-flex align-items-center gap-3 flex-wrap mb-2">
                     <div class="d-flex align-items-center gap-2 rounded-3 px-4 py-2"
                          style="background:#0a3d22;">
-                        <span class="text-secondary small">Institute Login ID</span>
+                        <span class="text-secondary small">First-Login Password</span>
                         <span id="loginIdDisplay"
                               class="fw-bold text-white"
-                              style="font-size:1.6rem;letter-spacing:0.3em;font-family:monospace;">
-                            @newLoginId
+                              style="font-size:1.4rem;letter-spacing:0.12em;font-family:monospace;">
+                            Aimbys&commat;@newLoginId
                         </span>
                     </div>
                     <button type="button"
                             class="btn btn-sm btn-outline-success"
-                            onclick="navigator.clipboard.writeText('@newLoginId').then(function(){ this.textContent='✓ Copied!'; setTimeout(function(){ document.getElementById('copyBtn').textContent='Copy'; },2000); }.bind(this))"
-                            id="copyBtn">
+                            data-password="Aimbys@@@newLoginId"
+                            onclick="aimbysAdminCopy(this)">
                         Copy
                     </button>
                 </div>
-                <p class="mt-2 mb-0 text-white-50 small">
-                    This code <strong class="text-white">will not be shown again.</strong>
-                    Please record it now.
-                </p>
+                <div class="text-white-50 small">
+                    Institute Login ID (for identity verification after first login):
+                    <strong class="text-white" style="font-family:monospace;letter-spacing:0.2em;">@newLoginId</strong>
+                </div>
             </div>
         </div>
+        <script>
+        function aimbysAdminCopy(btn) {
+            var pw = btn.getAttribute('data-password');
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(pw).then(function () {
+                    btn.textContent = '✓ Copied!';
+                    setTimeout(function () { btn.textContent = 'Copy'; }, 2500);
+                });
+            } else {
+                var ta = document.createElement('textarea');
+                ta.value = pw; ta.style.position = 'fixed'; ta.style.opacity = '0';
+                document.body.appendChild(ta); ta.select();
+                try { document.execCommand('copy'); btn.textContent = '✓ Copied!'; }
+                catch(e) { btn.textContent = 'Copy failed'; }
+                document.body.removeChild(ta);
+                setTimeout(function () { btn.textContent = 'Copy'; }, 2500);
+            }
+        }
+        </script>
     }
 
     @if (TempData["Error"] is string errorMsg)

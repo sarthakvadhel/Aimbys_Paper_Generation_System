@@ -31,22 +31,51 @@
                 </div>
                 @if (!string.IsNullOrEmpty(Model.InstituteLoginId) && Model.InstituteLoginId != "00000000")
                 {
-                    <div class="d-flex align-items-center gap-2 mt-1">
-                        <span class="fw-bold"
-                              style="font-size:1.25rem;letter-spacing:0.2em;font-family:monospace;">
-                            @Model.InstituteLoginId
-                        </span>
-                        <button type="button"
-                                class="btn btn-sm btn-outline-secondary py-0 px-2"
-                                style="font-size:0.7rem;"
-                                onclick="navigator.clipboard.writeText('@Model.InstituteLoginId').then(function(){ this.textContent='✓'; setTimeout(function(t){ t.textContent='Copy'; }.bind(null,this),1500); }.bind(this))">
-                            Copy
-                        </button>
+                    <div class="mt-1">
+                        <div class="text-secondary" style="font-size:0.7rem;text-transform:uppercase;letter-spacing:0.06em;">8-Digit Code (for identity verification)</div>
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="fw-bold"
+                                  style="font-size:1.1rem;letter-spacing:0.2em;font-family:monospace;">
+                                @Model.InstituteLoginId
+                            </span>
+                        </div>
+                        <div class="mt-1 text-secondary" style="font-size:0.7rem;text-transform:uppercase;letter-spacing:0.06em;">First-Login Password (enter on login page)</div>
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="fw-bold text-info"
+                                  style="font-size:1.1rem;letter-spacing:0.1em;font-family:monospace;">
+                                Aimbys&commat;@Model.InstituteLoginId
+                            </span>
+                            <button type="button"
+                                    class="btn btn-sm btn-outline-secondary py-0 px-2"
+                                    style="font-size:0.7rem;"
+                                    data-password="Aimbys@@@Model.InstituteLoginId"
+                                    onclick="aimbysAdminCopyDetail(this)">
+                                Copy
+                            </button>
+                        </div>
+                        <div class="text-secondary small mt-1">
+                            Share the first-login password securely with the admin.
+                        </div>
                     </div>
-                    <div class="text-secondary small mt-1">
-                        Share this ID securely with the Institute Admin. It is their
-                        initial login password and will be required on first sign-in.
-                    </div>
+                    <script>
+                    function aimbysAdminCopyDetail(btn) {
+                        var pw = btn.getAttribute('data-password');
+                        if (navigator.clipboard && window.isSecureContext) {
+                            navigator.clipboard.writeText(pw).then(function () {
+                                btn.textContent = '✓ Copied!';
+                                setTimeout(function () { btn.textContent = 'Copy'; }, 2500);
+                            });
+                        } else {
+                            var ta = document.createElement('textarea');
+                            ta.value = pw; ta.style.position = 'fixed'; ta.style.opacity = '0';
+                            document.body.appendChild(ta); ta.select();
+                            try { document.execCommand('copy'); btn.textContent = '✓ Copied!'; }
+                            catch(e) { btn.textContent = 'Copy failed'; }
+                            document.body.removeChild(ta);
+                            setTimeout(function () { btn.textContent = 'Copy'; }, 2500);
+                        }
+                    }
+                    </script>
                 }
                 else
                 {
