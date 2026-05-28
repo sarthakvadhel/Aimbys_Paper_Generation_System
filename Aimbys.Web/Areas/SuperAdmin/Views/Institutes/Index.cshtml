@@ -24,10 +24,7 @@
 
     @if (!string.IsNullOrEmpty(newLoginId))
     {
-        @* Rich login-ID reveal banner — shown once immediately after creation *@
-        @{
-            var fullPassword = $"Aimbys@{newLoginId}";
-        }
+        var fullPassword = $"Aimbys@{newLoginId}";
         <div class="alert border-0 rounded-4 p-4 mb-3 d-flex align-items-start gap-3"
              style="background:#052e16;"
              id="loginIdBanner">
